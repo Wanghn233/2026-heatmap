@@ -1,6 +1,6 @@
 import { createClient } from 'redis';
 
-const redis = await createClient().connect();
+const redis = await createClient({ url: process.env.REDIS_URL }).connect();
 
 export default async function handler(request, response) {
     const DB_KEY = 'year_2026_events';
