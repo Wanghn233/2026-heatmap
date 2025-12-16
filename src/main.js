@@ -1,0 +1,557 @@
+import './style.css'
+
+const app = document.querySelector('#app')
+
+// Helper to format date (Local Time to avoid UTC shift bug)
+const formatDate = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// Generate 2026 dates
+const startDate = new Date('2026-01-01T00:00:00')
+const endDate = new Date('2026-12-31T00:00:00')
+const days = []
+
+let currentDate = new Date(startDate)
+while (currentDate <= endDate) {
+  days.push(new Date(currentDate))
+  currentDate.setDate(currentDate.getDate() + 1)
+}
+
+// Group into chunks of 10
+const CHUNK_SIZE = 10
+const chunks = []
+for (let i = 0; i < days.length; i += CHUNK_SIZE) {
+  chunks.push(days.slice(i, i + CHUNK_SIZE))
+}
+
+const weekdayMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+// Render Header
+const header = `
+  <header>
+    <img src="/logo.svg" alt="App Logo" class="app-logo" />
+    <h1>2026 Heatmap</h1>
+    <div class="subtitle">一年只是36个10天而已</div>
+  </header>
+`
+
+// Holidays Map (2026) - Comprehensive
+const holidays = {
+  // 元旦 (Jan 1-3)
+  '2026-01-01': '元旦', '2026-01-02': '元旦', '2026-01-03': '元旦',
+  // 春节 (Feb 15-23)
+  '2026-02-15': '春节', '2026-02-16': '春节', '2026-02-17': '春节', '2026-02-18': '春节',
+  '2026-02-19': '春节', '2026-02-20': '春节', '2026-02-21': '春节', '2026-02-22': '春节', '2026-02-23': '春节',
+  // 清明 (Apr 4-6)
+  '2026-04-04': '清明节', '2026-04-05': '清明节', '2026-04-06': '清明节',
+  // 劳动节 (May 1-5)
+  '2026-05-01': '劳动节', '2026-05-02': '劳动节', '2026-05-03': '劳动节', '2026-05-04': '劳动节', '2026-05-05': '劳动节',
+  // 端午 (Jun 19-21)
+  '2026-06-19': '端午节', '2026-06-20': '端午节', '2026-06-21': '端午节',
+  // 中秋 (Sep 25-27)
+  '2026-09-25': '中秋节', '2026-09-26': '中秋节', '2026-09-27': '中秋节',
+  // 国庆 (Oct 1-7)
+  '2026-10-01': '国庆节', '2026-10-02': '国庆节', '2026-10-03': '国庆节', '2026-10-04': '国庆节',
+  '2026-10-05': '国庆节', '2026-10-06': '国庆节', '2026-10-07': '国庆节'
+}
+
+// Make-up Workdays (Shift days)
+// These are weekends that are worked
+const makeupWorkdays = [
+  '2026-01-04', // Sun
+  '2026-02-14', // Sat
+  '2026-02-28', // Sat
+  '2026-05-09', // Sat
+  '2026-09-20', // Sun
+  '2026-10-10'  // Sat
+]
+
+// Render Grid
+const renderRow = (chunk, index) => {
+  const cells = chunk.map(date => {
+    // Default level is 0. Data will be filled by loadAllEvents() later.
+    let level = 0
+
+    const dateStr = formatDate(date)
+    const holidayName = holidays[dateStr]
+    const isMakeup = makeupWorkdays.includes(dateStr)
+
+    // Check for weekend (0 is Sunday, 6 is Saturday)
+    const dayOfWeek = date.getDay()
+    const weekdayStr = weekdayMap[dayOfWeek]
+    // It is a display weekend ONLY if it is Sat/Sun AND NOT a makeup workday
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6) && !isMakeup
+
+    // Check for Today
+    const now = new Date()
+    const todayStr = formatDate(now)
+    const isToday = dateStr === todayStr
+
+    // If it's a holiday, add data attribute
+    const holidayAttr = holidayName ? `data-holiday="${holidayName}"` : ''
+    // Weekend attribute
+    const weekendAttr = isWeekend ? 'data-weekend="true"' : ''
+    // Makeup attribute (for tooltip)
+    const makeupAttr = isMakeup ? 'data-makeup="true"' : ''
+    // Today attribute
+    const todayAttr = isToday ? 'data-today="true"' : ''
+
+    return `
+      <div 
+        class="day-cell" 
+        data-date="${dateStr}" 
+        data-weekday="${weekdayStr}"
+        data-level="${level}"
+        ${holidayAttr}
+        ${weekendAttr}
+        ${makeupAttr}
+        ${todayAttr}
+      ></div>
+    `
+  }).join('')
+
+  // Pad the last row if needed to keep alignment (optional, but CSS flex handles it fine)
+  // Let's just render what we have.
+
+  return `
+    <div class="decade-row">
+      <div class="row-label">#${index + 1}</div>
+      ${cells}
+    </div>
+  `
+}
+
+// Render Header Row (1-10)
+const numbers = Array.from({ length: 10 }, (_, i) => i + 1)
+const headerRow = `
+  <div class="header-row">
+    <div class="header-label"></div> <!-- Spacer for row labels -->
+    ${numbers.map(n => `<div class="col-num">${n}</div>`).join('')}
+  </div>
+`
+
+const gridContent = chunks.map((chunk, index) => renderRow(chunk, index)).join('')
+
+const heatmap = `
+  <div class="heatmap-container">
+    ${headerRow}
+    ${gridContent}
+  </div>
+`
+
+// Render Legend
+const legend = `
+  <div class="legend">
+    <span>Less</span>
+    <div class="legend-item" style="background: var(--level-0)"></div>
+    <div class="legend-item" style="background: var(--level-1)"></div>
+    <div class="legend-item" style="background: var(--level-2)"></div>
+    <div class="legend-item" style="background: var(--level-3)"></div>
+    <div class="legend-item" style="background: var(--level-4)"></div>
+    <span>More</span>
+    <span style="margin-left: 12px; font-size: 10px; color: var(--holiday-color);">■ Holiday</span>
+    <span style="margin-left: 8px; font-size: 10px; color: var(--weekend-color);">■ Weekend</span>
+  </div>
+`
+
+// Render Main Content
+// Target the heatmap section specifically
+const heatmapSection = document.querySelector('#heatmap-section')
+
+heatmapSection.innerHTML = `
+  ${header}
+  ${heatmap}
+  ${legend}
+`
+
+// --- Tooltip Logic ---
+const tooltip = document.createElement('div')
+// (Keep tooltip logic as is)
+tooltip.id = 'tooltip'
+document.body.appendChild(tooltip)
+
+const heatmapEl = document.querySelector('.heatmap-container')
+
+// Use event delegation for better performance
+heatmapEl.addEventListener('mouseover', (e) => {
+  if (e.target.classList.contains('day-cell')) {
+    const date = e.target.getAttribute('data-date')
+    const weekday = e.target.getAttribute('data-weekday') // Read weekday
+    const level = e.target.getAttribute('data-level')
+    const holiday = e.target.getAttribute('data-holiday')
+    const makeup = e.target.getAttribute('data-makeup')
+
+    // Build Tooltip Content
+    let text = `<span style="font-weight:600">${date} ${weekday}</span>`
+
+    if (makeup) {
+      text += ` <span style="color: #ef4444; font-weight:bold;">(班)</span>`
+    }
+
+    if (holiday) {
+      text += `<br><strong style="color: #fbbf24">🎉 ${holiday}</strong>`
+    }
+
+    tooltip.innerHTML = text
+    tooltip.style.opacity = '1'
+
+    // Position slightly above the element
+    const rect = e.target.getBoundingClientRect()
+    // Center horizontally on the cell, sit above it
+    tooltip.style.left = `${rect.left + rect.width / 2}px`
+    tooltip.style.top = `${rect.top}px`
+  }
+})
+
+heatmapEl.addEventListener('mouseout', (e) => {
+  if (e.target.classList.contains('day-cell')) {
+    tooltip.style.opacity = '0'
+  }
+})
+
+// --- Event Panel Logic ---
+const formatDateLocal = (dateStr) => dateStr;
+
+// Data Store
+let eventsData = {}
+
+// API Functions
+const API_URL = '/api/events'
+// (Functions moved to after Auth logic)
+
+// --- Auth Logic ---
+const authModal = document.getElementById('auth-modal')
+const authInput = document.getElementById('auth-input')
+const authBtn = document.getElementById('auth-btn')
+
+let authToken = localStorage.getItem('year_app_token') || ''
+
+const initApp = () => {
+  if (authToken) {
+    // We have a token, try to load data
+    loadAllEvents()
+  } else {
+    // No token, show lock screen
+    authModal.classList.remove('hidden')
+  }
+}
+
+const handleLogin = () => {
+  const pwd = authInput.value.trim()
+  if (!pwd) return
+
+  // Save as token (Simple logic for now, in real app, maybe exchange for JWT)
+  authToken = pwd
+  localStorage.setItem('year_app_token', authToken)
+
+  // Unlock UI
+  authModal.classList.add('hidden')
+
+  // Load Data
+  loadAllEvents()
+}
+
+// Updated API Functions with Auth
+const loadAllEvents = async () => {
+  try {
+    console.log('Fetching data...')
+    const res = await fetch(API_URL, {
+      headers: {
+        'Authorization': `Bearer ${authToken}` // Send token
+      }
+    })
+
+    if (res.status === 401 || res.status === 403) {
+      // Token invalid
+      console.warn('Auth failed')
+      localStorage.removeItem('year_app_token')
+      authToken = ''
+      authModal.classList.remove('hidden')
+      authInput.value = ''
+      authInput.placeholder = 'Wrong password, try again'
+      return
+    }
+
+    if (res.ok) {
+      const cloudData = await res.json()
+      eventsData = cloudData
+      Object.keys(eventsData).forEach(date => {
+        updateCellHeatmap(date)
+      })
+      console.log('Data loaded')
+    }
+  } catch (err) {
+    console.warn('Failed to fetch events:', err)
+  }
+}
+
+const saveEvents = async (dateStr) => {
+  const events = eventsData[dateStr] || []
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ date: dateStr, events })
+    })
+  } catch (err) {
+    console.error('Save failed:', err)
+  }
+}
+
+// DOM Elements (Panel)
+const panelOverlay = document.getElementById('panel-overlay')
+const eventPanel = document.getElementById('event-panel')
+const panelDateTitle = document.getElementById('panel-date')
+
+const todoListEl = document.getElementById('todo-list')
+const doneListEl = document.getElementById('done-list')
+const giveupListEl = document.getElementById('giveup-list')
+
+const eventInput = document.getElementById('event-input')
+const addTodoBtn = document.getElementById('add-todo-btn')
+const addDoneBtn = document.getElementById('add-done-btn')
+const closeBtn = document.getElementById('close-btn')
+
+// Listeners
+authBtn.addEventListener('click', handleLogin)
+authInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') handleLogin()
+})
+
+// Start
+initApp()
+
+let currentSelectedDate = null
+
+// Functions
+const openPanel = (dateStr) => {
+  currentSelectedDate = dateStr
+  renderEventsList()
+
+  // Calculate meta info
+  const dateObj = new Date(dateStr + 'T00:00:00') // Force midnight localish
+  const dayIndex = dateObj.getDay()
+  const weekday = weekdayMap[dayIndex]
+  const holiday = holidays[dateStr]
+  const isMakeup = makeupWorkdays.includes(dateStr)
+
+  let headerHtml = `<span style="margin-right:8px">${dateStr}</span><span style="font-size:0.85em; opacity:0.8; margin-right:8px">${weekday}</span>`
+
+  if (holiday) {
+    headerHtml += `<span style="font-size:0.85em; color:var(--holiday-color)">🎉 ${holiday}</span>`
+  } else if (isMakeup) {
+    headerHtml += `<span style="font-size:0.85em; color:#ef4444">班</span>`
+  }
+
+  panelDateTitle.innerHTML = headerHtml
+
+  panelOverlay.classList.remove('hidden')
+  eventPanel.classList.remove('hidden')
+
+  // Focus input on desktop
+  if (window.innerWidth > 640) {
+    setTimeout(() => eventInput.focus(), 100)
+  }
+}
+
+const closePanel = () => {
+  panelOverlay.classList.add('hidden')
+  eventPanel.classList.add('hidden')
+  // Don't clear currentSelectedDate immediately to avoid render glitches during transition
+}
+
+const renderEventsList = () => {
+  if (!currentSelectedDate) return
+
+  const events = eventsData[currentSelectedDate] || []
+
+  // Clear lists
+  todoListEl.innerHTML = ''
+  doneListEl.innerHTML = ''
+  giveupListEl.innerHTML = ''
+
+  let todoCount = 0
+  let doneCount = 0
+  let giveupCount = 0
+
+  events.forEach((evt, idx) => { // idx for hard delete if needed, but we rely on ID for logic mainly
+    const item = document.createElement('div')
+    item.className = `event-item ${evt.status}`
+    // Show 'Recover' icon or empty checkbox for Giveup? Let's use same checkbox but styled differently in CSS
+    item.innerHTML = `
+      <div class="event-checkbox" data-id="${evt.id}" title="${evt.status === 'giveup' ? 'Restore to Todo' : 'Toggle Done'}"></div>
+      <span class="event-text">${evt.text}</span>
+      <span class="delete-event" data-idx="${idx}" title="${evt.status === 'giveup' ? 'Permanently Delete' : 'Give Up'}">✕</span>
+    `
+
+    if (evt.status === 'done') {
+      doneListEl.appendChild(item)
+      doneCount++
+    } else if (evt.status === 'giveup') {
+      giveupListEl.appendChild(item)
+      giveupCount++
+    } else {
+      todoListEl.appendChild(item)
+      todoCount++
+    }
+  })
+
+  // Toggle Section Visibility
+  todoListEl.parentElement.style.display = todoCount > 0 ? 'block' : 'none'
+  doneListEl.parentElement.style.display = doneCount > 0 ? 'block' : 'none'
+  giveupListEl.parentElement.style.display = giveupCount > 0 ? 'block' : 'none'
+
+  // Empty State (Show inside container if absolutely nothing)
+  // We can stick this message into the container directly or reuse one of the sections
+  if (todoCount === 0 && doneCount === 0 && giveupCount === 0) {
+    // Show a simple message in the container if totally empty
+    // But since we hid all sections, the container is blank. 
+    // Let's force show the todo section to hold the empty message
+    todoListEl.parentElement.style.display = 'block'
+    todoListEl.innerHTML = '<div class="empty-state">No tasks yet.</div>'
+  }
+}
+
+const updateCellHeatmap = (dateStr) => {
+  const events = eventsData[dateStr] || []
+  // Only count DONE (and NOT giveup) tasks for heat level!
+  const doneCount = events.filter(e => e.status === 'done').length
+
+  // Logic: 0 -> Level 0, 1 -> Level 1, 2-3 -> Level 2, 4-5 -> Level 3, 6+ -> Level 4
+  let level = 0
+  if (doneCount > 0) level = 1
+  if (doneCount >= 2) level = 2
+  if (doneCount >= 4) level = 3
+  if (doneCount >= 6) level = 4
+
+  // Find cell and update
+  const cell = document.querySelector(`.day-cell[data-date="${dateStr}"]`)
+  if (cell) {
+    cell.setAttribute('data-level', level)
+  }
+}
+
+const addEvent = (status = 'todo') => { // Accept status
+  const text = eventInput.value.trim()
+  if (!text || !currentSelectedDate) return
+
+  if (!eventsData[currentSelectedDate]) {
+    eventsData[currentSelectedDate] = []
+  }
+
+  eventsData[currentSelectedDate].push({
+    text,
+    id: Date.now(),
+    status: status // Use passed status
+  })
+
+  eventInput.value = ''
+  renderEventsList()
+  updateCellHeatmap(currentSelectedDate)
+  saveEvents(currentSelectedDate) // Cloud Save
+}
+
+const deleteEvent = (idx) => {
+  if (!currentSelectedDate || !eventsData[currentSelectedDate]) return
+
+  const evt = eventsData[currentSelectedDate][idx]
+
+  if (evt.status === 'giveup') {
+    // Hard Delete
+    eventsData[currentSelectedDate].splice(idx, 1)
+  } else {
+    // Soft Delete -> Give Up
+    evt.status = 'giveup'
+  }
+
+  renderEventsList()
+  updateCellHeatmap(currentSelectedDate)
+  saveEvents(currentSelectedDate) // Cloud Save
+}
+
+// Toggle: Todo <-> Done. 
+// Giveup -> Todo (Restore)
+const toggleEventStatus = (id) => {
+  if (!currentSelectedDate || !eventsData[currentSelectedDate]) return
+
+  const event = eventsData[currentSelectedDate].find(e => e.id == id)
+  if (event) {
+    if (event.status === 'giveup') {
+      event.status = 'todo' // Restore
+    } else {
+      event.status = event.status === 'done' ? 'todo' : 'done'
+    }
+    renderEventsList()
+    updateCellHeatmap(currentSelectedDate)
+    saveEvents(currentSelectedDate) // Cloud Save
+  }
+}
+
+// Listeners
+heatmapEl.addEventListener('click', (e) => {
+  const cell = e.target.closest('.day-cell')
+  if (cell) {
+    const date = cell.getAttribute('data-date')
+    openPanel(date)
+  }
+})
+
+closeBtn.addEventListener('click', closePanel)
+panelOverlay.addEventListener('click', closePanel)
+
+// Bind Dual Buttons
+addTodoBtn.addEventListener('click', () => addEvent('todo'))
+addDoneBtn.addEventListener('click', () => addEvent('done'))
+
+eventInput.addEventListener('keydown', (e) => {
+  // Enter = Todo, Ctrl+Enter = Done
+  if (e.key === 'Enter') {
+    if (e.metaKey || e.ctrlKey) {
+      addEvent('done')
+    } else {
+      addEvent('todo')
+    }
+  }
+})
+
+// Delegation for Delete and Toggle
+const handleListClick = (e) => {
+  // Handle Delete / Give Up Button
+  if (e.target.classList.contains('delete-event')) {
+    const idx = parseInt(e.target.getAttribute('data-idx'))
+    deleteEvent(idx)
+    return
+  }
+
+  // Handle Checkbox Toggle
+  if (e.target.classList.contains('event-checkbox')) {
+    const id = e.target.getAttribute('data-id')
+    toggleEventStatus(id)
+    return
+  }
+
+  // Optional: Click text to toggle too?
+  /*
+  const item = e.target.closest('.event-item')
+  if (item && !e.target.classList.contains('delete-event')) {
+      const checkbox = item.querySelector('.event-checkbox')
+      toggleEventStatus(checkbox.getAttribute('data-id'))
+  }
+  */
+}
+
+todoListEl.addEventListener('click', handleListClick)
+doneListEl.addEventListener('click', handleListClick)
+giveupListEl.addEventListener('click', handleListClick)
+
+// Close on Esc
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closePanel()
+})

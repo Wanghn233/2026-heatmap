@@ -1,0 +1,829 @@
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark light;
+  /* Allow browser to switch user agent styles */
+
+  /* --- Default Theme (Dark) --- */
+  --bg-body: #09090b;
+  --bg-card: #18181b;
+  --text-main: #e4e4e7;
+  --text-muted: #a1a1aa;
+  --border-color: #27272a;
+
+  /* Heatmap Colors (Dark) */
+  --level-0: #27272a;
+  --level-1: #0e4429;
+  --level-2: #006d32;
+  --level-3: #26a641;
+  --level-4: #39d353;
+
+  /* Markers */
+  --holiday-color: #fbbf24;
+  --weekend-color: #22d3ee;
+  /* Cyan-400 (More visible than Indigo) */
+  /* Highlights */
+  --today-border: rgba(244, 63, 94, 0.5);
+  /* Rose-500 @ 50% */
+  --today-glow: rgba(244, 63, 94, 0.25);
+  /* Rose-500 @ 25% */
+  --hover-border: rgba(255, 255, 255, 0.5);
+
+  --cell-size: 18px;
+  --cell-gap: 5px;
+  --border-radius: 4px;
+}
+
+/* --- Light Mode Overrides --- */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-body: #f4f4f5;
+    /* Zinc-100 */
+    --bg-card: #ffffff;
+    --text-main: #18181b;
+    /* Zinc-900 */
+    --text-muted: #71717a;
+    /* Zinc-500 */
+    --border-color: #e4e4e7;
+
+    /* Heatmap Colors (Light - GitHub Style) */
+    --level-0: #ebedf0;
+    --level-1: #9be9a8;
+    --level-2: #40c463;
+    --level-3: #30a14e;
+    --level-4: #216e39;
+
+    /* Markers (Darker for visibility on white) */
+    --holiday-color: #d97706;
+    /* Amber-600 */
+    --weekend-color: #0891b2;
+    /* Cyan-600 */
+    --today-border: #ef4444;
+    /* Red border for today in light mode */
+    --today-glow: rgba(239, 68, 68, 0.4);
+  }
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+}
+
+#app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+header {
+  margin-bottom: 2rem;
+}
+
+h1 {
+  margin-top: 0;
+  /* Remove default browser margin */
+  font-size: 2.5em;
+  line-height: 1.1;
+  margin-bottom: 0.5rem;
+  /* Adjust gradient for light mode compatibility? keeping it simple for now or use variables if needed */
+  background: linear-gradient(to right, var(--text-main), var(--text-muted));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+/* Heatmap Container */
+.heatmap-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cell-gap);
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+/* Row (Decade - 10 days) */
+.decade-row {
+  display: flex;
+  gap: var(--cell-gap);
+  align-items: center;
+}
+
+.row-label {
+  width: 30px;
+  text-align: right;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-right: 8px;
+  font-family: monospace;
+}
+
+/* Day Cell */
+.day-cell {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  background-color: var(--level-0);
+  border-radius: var(--border-radius);
+  transition: transform 0.1s ease, outline 0.1s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.day-cell:hover {
+  transform: scale(1.3);
+  z-index: 10;
+  outline: 1px solid var(--text-main);
+}
+
+/* Global Tooltip (JS driven) */
+#tooltip {
+  position: fixed;
+  background: var(--bg-body);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  /* Let mouse pass through */
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translate(-50%, -100%);
+  /* Center horizontally, sit above cursor */
+  margin-top: -8px;
+  /* Little gap */
+}
+
+/* Levels */
+.day-cell[data-level="1"] {
+  background-color: var(--level-1);
+}
+
+.day-cell[data-level="2"] {
+  background-color: var(--level-2);
+}
+
+.day-cell[data-level="3"] {
+  background-color: var(--level-3);
+}
+
+.day-cell[data-level="4"] {
+  background-color: var(--level-4);
+  box-shadow: 0 0 8px var(--level-4);
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.legend-item {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* Weekend Highlight (Base priority) */
+.day-cell[data-weekend="true"] {
+  /* Cyan-400 at 50% opacity */
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.5);
+}
+
+/* Holiday Highlight (Higher priority, overrides weekend) */
+.day-cell[data-holiday] {
+  /* Use box-shadow for inner border effect to avoid layout shifts */
+  /* Amber-400 at 50% opacity */
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.5);
+}
+
+/* "Today" Highlight Style */
+/* "Today" Highlight Style - Glow & Brightness Pulse */
+.day-cell[data-today="true"] {
+  /* Use inset box-shadow instead of border to keep size identical to other cells */
+  /* border: none; (implicit) */
+  z-index: 100 !important;
+  /* No scale, no border property */
+  animation: pulse-today 2s infinite ease-in-out !important;
+  /* Medium speed (2s) */
+}
+
+@keyframes pulse-today {
+  0% {
+    box-shadow: inset 0 0 0 2px var(--today-border), 0 0 2px 0px var(--today-glow);
+    filter: brightness(100%);
+  }
+
+  50% {
+    /* Medium glow (12px) - The Goldilocks Zone */
+    box-shadow: inset 0 0 0 2px var(--today-border), 0 0 12px 3px var(--today-glow);
+    filter: brightness(140%);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 2px var(--today-border), 0 0 2px 0px var(--today-glow);
+    filter: brightness(100%);
+  }
+}
+
+/* Column Header (1-10) - Restored */
+.header-row {
+  display: flex;
+  gap: var(--cell-gap);
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.header-label {
+  width: 30px;
+  margin-right: 8px;
+}
+
+.col-num {
+  width: var(--cell-size);
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+/* --- Layout & Responsiveness --- */
+#app {
+  /* Ensure heatmap is centered */
+  width: fit-content;
+  margin: 0 auto;
+  padding: 2rem;
+  position: relative;
+  /* Anchor for sidebar */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#heatmap-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mobile-only {
+  display: none !important;
+}
+
+/* --- Event Panel --- */
+#event-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Desktop: Fixed Side Panel (Always Centered) */
+@media (min-width: 1000px) {
+
+  /* Require enough width for side panel */
+  #event-panel {
+    width: 320px;
+    height: 600px;
+    /* Limit height if screen is short */
+    max-height: 90vh;
+
+    /* Fixed positioning relative to the viewport window */
+    position: fixed;
+
+    /* Vertical Center */
+    top: 50%;
+    transform: translateY(-50%);
+
+    /* Horizontal Position: Relative to viewport center (which aligns with app center) */
+    /* Heatmap is ~320px wide. Half is 160px. Gap 40px. Margin ~200px */
+    left: 50%;
+    margin-left: 220px;
+    /* Push it to the right of the heatmap */
+
+    border-radius: 12px;
+    z-index: 10;
+  }
+
+  #event-panel.hidden {
+    display: none !important;
+  }
+
+  #close-btn.mobile-only {
+    display: block !important;
+  }
+}
+
+/* Tablet/Small Laptop: Fallback to Modal/Center Style */
+/* Because there isn't enough room on the right side */
+@media (min-width: 800px) and (max-width: 999px) {
+  #event-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    height: 600px;
+    max-height: 80vh;
+    border-radius: 12px;
+    z-index: 201;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  #event-panel.hidden {
+    display: none !important;
+  }
+
+  #panel-overlay {
+    /* Show overlay for modal mode */
+    display: block !important;
+  }
+
+  #close-btn.mobile-only {
+    display: block !important;
+  }
+}
+
+
+/* Mobile: Bottom Sheet */
+@media (max-width: 799px) {
+  #app {
+    width: 100%;
+    /* Reset width */
+    display: block;
+    padding: 1rem;
+  }
+
+  .mobile-only {
+    display: block !important;
+  }
+
+  #event-panel {
+    position: fixed;
+    z-index: 201;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(0);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  #event-panel.hidden {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Overlay */
+  #panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 200;
+    backdrop-filter: blur(2px);
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+
+  #panel-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* --- Panel Internal UI --- */
+.panel-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  border-radius: 12px 12px 0 0;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+#close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+#event-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg-body);
+  /* Contrast with card bg */
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-top: 2rem;
+}
+
+.panel-input-area {
+  padding: 16px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  gap: 8px;
+}
+
+#event-input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-body);
+  color: var(--text-main);
+  outline: none;
+}
+
+#event-input:focus {
+  border-color: var(--weekend-color);
+}
+
+#add-btn {
+  padding: 0 16px;
+  background: var(--weekend-color);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+#add-btn:hover {
+  filter: brightness(110%);
+}
+
+.event-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.delete-event {
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0%);
+  }
+}
+
+/* --- Todo / Done Layout & Checkbox Styles --- */
+#event-list-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg-body);
+}
+
+.list-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 8px 4px;
+}
+
+.event-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 20px;
+  /* Drop zone placeholder */
+}
+
+/* Updated Event Item Layout */
+.event-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* Space between checkbox and text */
+  padding: 10px 12px;
+  /* Slightly more padding */
+  margin-bottom: 0;
+  /* Handled by gap in .event-group */
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.event-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.event-text {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+
+/* Custom Checkbox */
+.event-checkbox {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  /* Prevent squishing */
+  border-radius: 6px;
+  border: 2px solid var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  background: transparent;
+}
+
+.event-checkbox:hover {
+  border-color: var(--weekend-color);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+/* Done State */
+.event-item.done {
+  opacity: 0.6;
+  background: var(--bg-body);
+  /* Slightly recede */
+  border-color: transparent;
+}
+
+.event-item.done .event-text {
+  /* text-decoration: line-through; (Removed) */
+  color: var(--text-muted);
+}
+
+.event-item.done .event-checkbox {
+  background: var(--weekend-color);
+  border-color: var(--weekend-color);
+  position: relative;
+}
+
+/* Checkmark Icon */
+.event-item.done .event-checkbox::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-top: -2px;
+  /* Optical adjustment */
+}
+
+/* Give Up State */
+.event-item.giveup {
+  opacity: 0.4;
+  background: transparent;
+  border: 1px dashed var(--border-color);
+}
+
+.event-item.giveup .event-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.event-item.giveup .event-checkbox {
+  border-color: var(--border-color);
+  background: transparent;
+  cursor: not-allowed;
+}
+
+/* Hide checkmark for giveup */
+.event-item.giveup .event-checkbox::after {
+  display: none;
+}
+
+/* --- Dual Add Buttons --- */
+.input-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.action-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 1.1em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #fff;
+}
+
+/* Add Todo Button (Default/Blue-ish or Theme color) */
+#add-todo-btn {
+  background: var(--border-color);
+  /* Neutral for Todo */
+  color: var(--text-main);
+}
+
+#add-todo-btn:hover {
+  background: var(--text-muted);
+}
+
+/* Add Done Button (Green/Theme Highlight) */
+#add-done-btn.done {
+  background: var(--weekend-color);
+  /* Cyan/Theme color */
+}
+
+#add-done-btn.done:hover {
+  filter: brightness(110%);
+  box-shadow: 0 0 8px var(--weekend-color);
+}
+
+/* --- App Logo --- */
+.app-logo {
+  height: 150px;
+  width: auto;
+  margin-bottom: 0px;
+  /* Tighten space between logo and title */
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.app-logo:hover {
+  filter: drop-shadow(0 0 1em #22d3eeaa);
+}
+
+/* --- Auth Modal --- */
+#auth-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-body);
+  /* Solid background to hide content */
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s ease;
+}
+
+#auth-modal.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-container {
+  text-align: center;
+  width: 90%;
+  max-width: 320px;
+}
+
+.auth-logo {
+  width: 80px;
+  height: auto;
+  margin-bottom: 1rem;
+}
+
+.auth-container h2 {
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.auth-container p {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 2rem;
+}
+
+#auth-input {
+  width: 100%;
+  box-sizing: border-box;
+  /* Key fix */
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  outline: none;
+  font-size: 1.1em;
+  text-align: center;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s;
+}
+
+#auth-input:focus {
+  border-color: var(--weekend-color);
+}
+
+#auth-btn {
+  width: 100%;
+  box-sizing: border-box;
+  /* Key fix */
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--weekend-color);
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+#auth-btn:hover {
+  filter: brightness(110%);
+}
