@@ -1,12 +1,6 @@
 import { createClient } from 'redis';
 
-// Initialize Redis Client Globally (Reuse connection)
-const client = createClient();
-
-client.on('error', (err) => console.error('Redis Client Error', err));
-
-// Connect to Redis (Top-level await)
-await client.connect();
+const redis = await createClient().connect();
 
 export default async function handler(request, response) {
     const DB_KEY = 'year_2026_events';
@@ -24,7 +18,7 @@ export default async function handler(request, response) {
 
     try {
         if (request.method === 'GET') {
-            const rawData = await client.hGetAll(DB_KEY);
+            const rawData = await redis.hGetAll(DB_KEY);
             const parsedData = {};
 
             if (rawData) {
@@ -45,7 +39,7 @@ export default async function handler(request, response) {
                 return response.status(400).json({ error: 'Invalid data format' });
             }
 
-            await client.hSet(DB_KEY, date, JSON.stringify(events));
+            await redis.hSet(DB_KEY, date, JSON.stringify(events));
             return response.status(200).json({ success: true });
         }
 
