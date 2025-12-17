@@ -336,13 +336,15 @@ const openPanel = (dateStr) => {
   renderEventsList()
 
   // Calculate meta info
-  const dateObj = new Date(dateStr + 'T00:00:00') // Force midnight localish
+  const dateObj = new Date(dateStr + 'T00:00:00')
   const dayIndex = dateObj.getDay()
   const weekday = weekdayMap[dayIndex]
   const holiday = holidays[dateStr]
   const isMakeup = makeupWorkdays.includes(dateStr)
+  const currentEmoji = getEmoji(dateStr)
 
-  let headerHtml = `<span style="margin-right:8px">${dateStr}</span><span style="font-size:0.85em; opacity:0.8; margin-right:8px">${weekday}</span>`
+  let headerHtml = `<input id="panel-emoji-input" maxlength="2" value="${currentEmoji}" placeholder="☺" autocomplete="off">`
+  headerHtml += `<span style="margin-right:8px">${dateStr}</span><span style="font-size:0.85em; opacity:0.8; margin-right:8px">${weekday}</span>`
 
   if (holiday) {
     headerHtml += `<span style="font-size:0.85em; color:var(--holiday-color)">🎉 ${holiday}</span>`
@@ -351,6 +353,21 @@ const openPanel = (dateStr) => {
   }
 
   panelDateTitle.innerHTML = headerHtml
+
+  // Bind Emoji Input
+  const emojiInput = document.getElementById('panel-emoji-input')
+
+  // Real-time update
+  emojiInput.addEventListener('input', (e) => {
+    const val = e.target.value
+    setEmoji(dateStr, val)
+    updateCellHeatmap(dateStr)
+  })
+
+  // Save on blur/enter
+  emojiInput.addEventListener('change', () => {
+    saveEvents(dateStr)
+  })
 
   // Mobile Fix: Hide tooltip immediately when panel opens
   const tooltip = document.getElementById('tooltip')
@@ -371,6 +388,30 @@ const closePanel = () => {
   // Don't clear currentSelectedDate immediately to avoid render glitches during transition
 }
 
+// Emoji Helpers
+const getEmoji = (date) => {
+  const events = eventsData[date] || []
+  const meta = events.find(e => e.status === 'meta')
+  return meta ? meta.text : ''
+}
+
+const setEmoji = (date, char) => {
+  if (!eventsData[date]) eventsData[date] = []
+
+  // Remove existing meta
+  const idx = eventsData[date].findIndex(e => e.status === 'meta')
+  if (idx !== -1) eventsData[date].splice(idx, 1)
+
+  // Add new if char exists
+  if (char) {
+    eventsData[date].push({
+      id: 'meta-emoji', // Fixed ID so we don't spam
+      text: char,
+      status: 'meta'
+    })
+  }
+}
+
 const renderEventsList = () => {
   if (!currentSelectedDate) return
 
@@ -385,7 +426,10 @@ const renderEventsList = () => {
   let doneCount = 0
   let giveupCount = 0
 
-  events.forEach((evt, idx) => { // idx for hard delete if needed, but we rely on ID for logic mainly
+  events.forEach((evt, index) => { // idx for hard delete if needed, but we rely on ID for logic mainly
+    // Skip Meta events (Emoji)
+    if (evt.status === 'meta') return
+
     const item = document.createElement('div')
     item.className = `event-item ${evt.status}`
     // Show 'Recover' icon or empty checkbox for Giveup? Let's use same checkbox but styled differently in CSS
@@ -425,20 +469,22 @@ const renderEventsList = () => {
 
 const updateCellHeatmap = (dateStr) => {
   const events = eventsData[dateStr] || []
-  // Only count DONE (and NOT giveup) tasks for heat level!
+  // Only count DONE tasks for heat level
   const doneCount = events.filter(e => e.status === 'done').length
 
-  // Logic: 0 -> Level 0, 1 -> Level 1, 2-3 -> Level 2, 4-5 -> Level 3, 6+ -> Level 4
   let level = 0
   if (doneCount > 0) level = 1
   if (doneCount >= 2) level = 2
   if (doneCount >= 4) level = 3
   if (doneCount >= 6) level = 4
 
-  // Find cell and update
   const cell = document.querySelector(`.day-cell[data-date="${dateStr}"]`)
   if (cell) {
     cell.setAttribute('data-level', level)
+
+    // Render Emoji
+    const emoji = getEmoji(dateStr)
+    cell.innerHTML = emoji ? `<div class="cell-emoji">${emoji}</div>` : ''
   }
 }
 
