@@ -51,6 +51,49 @@ const header = `
   </header>
 `
 
+// Easter Egg: Logo Logic
+setTimeout(() => {
+  const logo = document.querySelector('.app-logo')
+  let clickCount = 0
+  let resetTimer = null
+
+  if (logo) {
+    logo.addEventListener('click', () => {
+      clickCount++
+
+      // Clear existing reset timer
+      if (resetTimer) clearTimeout(resetTimer)
+
+      // Set new reset timer (reset count if no click within 500ms)
+      resetTimer = setTimeout(() => {
+        clickCount = 0
+      }, 500)
+
+      if (clickCount >= 5) {
+        // Spin!
+        logo.classList.remove('logo-sway')
+        logo.classList.add('logo-spin')
+        clickCount = 0 // Reset immediately after trigger
+
+        // Remove class after animation
+        setTimeout(() => {
+          logo.classList.remove('logo-spin')
+        }, 800)
+      } else {
+        // Sway
+        // Remove class strictly to re-trigger reflow if needed (though simple toggle works for single anims usually)
+        logo.classList.remove('logo-sway')
+        void logo.offsetWidth // Trigger reflow
+        logo.classList.add('logo-sway')
+
+        setTimeout(() => {
+          logo.classList.remove('logo-sway')
+        }, 400)
+      }
+    })
+  }
+}, 0) // Run after innerHTML set
+
 // Holidays Map (2026) - Comprehensive
 const holidays = {
   // 元旦 (Jan 1-3)
@@ -548,6 +591,7 @@ const updateCellHeatmap = (dateStr) => {
   const events = eventsData[dateStr] || []
   // Only count DONE tasks for heat level
   const doneCount = events.filter(e => e.status === 'done').length
+  const todoCount = events.filter(e => e.status === 'todo').length
 
   let level = 0
   if (doneCount > 0) level = 1
@@ -558,6 +602,7 @@ const updateCellHeatmap = (dateStr) => {
   const cell = document.querySelector(`.day-cell[data-date="${dateStr}"]`)
   if (cell) {
     cell.setAttribute('data-level', level)
+    cell.setAttribute('data-has-todo', todoCount > 0 ? 'true' : 'false')
 
     // Render Emoji
     const emoji = getEmoji(dateStr)

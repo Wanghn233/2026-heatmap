@@ -121,6 +121,7 @@ h1 {
   max-width: 100%;
   /* Ensure it fits in parent */
   box-sizing: border-box;
+  align-items: center;
 }
 
 /* Row (Decade - 10 days) */
@@ -194,6 +195,22 @@ h1 {
 .day-cell[data-level="4"] {
   background-color: var(--level-4);
   box-shadow: 0 0 8px var(--level-4);
+}
+
+/* Todo Indicator (Red Dot) */
+.day-cell[data-has-todo="true"]::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  background-color: #ef4444;
+  /* Red-500 */
+  border-radius: 50%;
+  border: 1px solid var(--bg-card);
+  /* Border matches card bg to create separation */
+  z-index: 5;
 }
 
 /* Legend */
@@ -755,6 +772,40 @@ h1 {
 
 .app-logo:hover {
   filter: drop-shadow(0 0 1em #22d3eeaa);
+}
+
+.logo-sway {
+  animation: sway 0.4s ease-in-out;
+}
+
+.logo-spin {
+  animation: spin 0.8s ease-in-out;
+}
+
+@keyframes sway {
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-15deg);
+  }
+
+  75% {
+    transform: rotate(15deg);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* --- Auth Modal --- */
