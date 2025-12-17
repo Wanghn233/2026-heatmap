@@ -9,6 +9,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    /* Critical CSS to prevent FOUC (Flash of Unstyled Content) */
+    .hidden {
+      opacity: 0 !important;
+      pointer-events: none !important;
+      visibility: hidden !important;
+    }
+  </style>
 </head>
 
 <body>
@@ -64,6 +72,8 @@
       <button id="auth-btn">Unlock</button>
     </div>
   </div>
+
+
 
   <script type="module" src="/src/main.js"></script>
 </body>

@@ -21,11 +21,6 @@ const getLunarStr = (dateStr) => {
 // --- Data & State ---
 // ... (rest of imports/state)
 
-// ... (skipping to openPanel modification)
-// I need to use multiple replacements or locate the code block precisely.
-// Since 'openPanel' is quite down, let me update the imports first and add the helper.
-
-
 // Generate 2026 dates
 const startDate = new Date('2026-01-01T00:00:00')
 const endDate = new Date('2026-12-31T00:00:00')
@@ -180,8 +175,10 @@ const heatmapSection = document.querySelector('#heatmap-section')
 
 heatmapSection.innerHTML = `
   ${header}
-  ${heatmap}
-  ${legend}
+  <div id="content-area">
+    ${heatmap}
+    ${legend}
+  </div>
 `
 
 // --- Tooltip Logic ---
@@ -247,9 +244,6 @@ heatmapEl.addEventListener('mouseout', (e) => {
   }
 })
 
-// --- Event Panel Logic ---
-const formatDateLocal = (dateStr) => dateStr;
-
 // Data Store
 let eventsData = {}
 
@@ -261,6 +255,7 @@ const API_URL = '/api/events'
 const authModal = document.getElementById('auth-modal')
 const authInput = document.getElementById('auth-input')
 const authBtn = document.getElementById('auth-btn')
+
 
 let authToken = localStorage.getItem('year_app_token') || ''
 
@@ -291,6 +286,16 @@ const handleLogin = () => {
 
 // Updated API Functions with Auth
 const loadAllEvents = async () => {
+  // Creative Loading: Hide Heatmap, Animate Logo & Title
+  const headerEl = document.querySelector('header')
+  const dashboard = document.querySelector('#content-area')
+
+  if (headerEl) headerEl.classList.add('loading')
+  if (dashboard) dashboard.classList.add('hidden-loading')
+
+  // Artificial delay to show off animation (optional, but good for UX feel if API is too fast)
+  // await new Promise(r => setTimeout(r, 800)) 
+
   try {
     console.log('Fetching data...')
     const res = await fetch(API_URL, {
@@ -320,6 +325,10 @@ const loadAllEvents = async () => {
     }
   } catch (err) {
     console.warn('Failed to fetch events:', err)
+  } finally {
+    // Stop Loading
+    if (headerEl) headerEl.classList.remove('loading')
+    if (dashboard) dashboard.classList.remove('hidden-loading')
   }
 }
 

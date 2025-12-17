@@ -827,6 +827,7 @@ h1 {
 #auth-btn:hover {
   filter: brightness(110%);
 }
+
 /* --- Emoji Feature --- */
 #panel-emoji-input {
   width: 36px;
@@ -842,6 +843,7 @@ h1 {
   transition: all 0.2s;
   padding: 0;
 }
+
 #panel-emoji-input:focus {
   border-style: solid;
   border-color: var(--weekend-color);
@@ -854,12 +856,78 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px; /* Emoji size on grid */
+  font-size: 12px;
+  /* Emoji size on grid */
   overflow: hidden;
 }
 
 .cell-emoji {
-  pointer-events: none; /* Let clicks pass through to cell */
+  pointer-events: none;
+  /* Let clicks pass through to cell */
   line-height: 1;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+}
+
+
+
+/* --- Creative Loading State --- */
+@keyframes logo-rock {
+  0% {
+    transform: rotate(-10deg);
+  }
+
+  50% {
+    transform: rotate(10deg);
+  }
+
+  100% {
+    transform: rotate(-10deg);
+  }
+}
+
+header.loading {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  margin: 0;
+  width: max-content;
+  /* Ensure compact width for centering */
+  pointer-events: none;
+  /* Let clicks pass through if anything behind */
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+header.loading .app-logo {
+  animation: logo-rock 0.8s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(34, 211, 238, 0.8));
+}
+
+/* Ensure transition visibility works after load */
+.hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: opacity 0.5s ease, visibility 0s 0.5s;
+  /* Delay visibility hide */
+}
+
+/* Override visibility when NOT hidden */
+#auth-modal:not(.hidden) {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s ease;
+}
+
+/* --- Content Wrapper for Loading Transition --- */
+#content-area {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#content-area.hidden-loading {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
 }
