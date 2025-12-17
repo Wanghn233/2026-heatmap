@@ -219,15 +219,15 @@ h1 {
 .day-cell[data-has-todo="true"]::after {
   content: '';
   position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 6px;
-  height: 6px;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
   background-color: #ef4444;
   /* Red-500 */
   border-radius: 50%;
-  border: 1px solid var(--bg-card);
-  /* Border matches card bg to create separation */
+  /* Remove border or keep it for contrast? Keeping it ensures visibility on all green levels */
+  box-shadow: 0 0 0 1px var(--bg-card);
   z-index: 5;
 }
 
