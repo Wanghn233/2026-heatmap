@@ -399,7 +399,7 @@ const openPanel = (dateStr) => {
 
   const headerHtml = `
     <div style="display:flex; align-items:center">
-      <input id="panel-emoji-input" maxlength="2" value="${currentEmoji}" placeholder="☺" autocomplete="off">
+      <input id="panel-emoji-input" maxlength="2" value="${currentEmoji}" placeholder="☺" autocomplete="off" name="emoji-status">
       <div style="display:flex; flex-direction:column; justify-content:center; align-items:flex-start; margin-left: 12px;">
         <div>${line1}</div>
         <div style="font-size:0.75em; color:var(--text-muted); line-height:1.2; margin-top:4px; display:flex; align-items:center">
@@ -437,13 +437,28 @@ const openPanel = (dateStr) => {
   if (window.innerWidth > 640) {
     setTimeout(() => eventInput.focus(), 100)
   }
+
+  // Push history state so Back button closes panel
+  window.history.pushState({ panel: 'open' }, '')
 }
 
-const closePanel = () => {
+const hidePanelUI = () => {
   panelOverlay.classList.add('hidden')
   eventPanel.classList.add('hidden')
   // Don't clear currentSelectedDate immediately to avoid render glitches during transition
 }
+
+const closePanel = () => {
+  // Go back in history -> triggers popstate -> calls hidePanelUI
+  window.history.back()
+}
+
+// Handle Back Button
+window.addEventListener('popstate', () => {
+  if (!eventPanel.classList.contains('hidden')) {
+    hidePanelUI()
+  }
+})
 
 // Emoji Helpers
 const getEmoji = (date) => {
