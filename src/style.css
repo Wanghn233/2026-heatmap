@@ -219,8 +219,8 @@ h1 {
 .day-cell[data-has-todo="true"]::after {
   content: '';
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: -2px;
+  right: -2px;
   width: 5px;
   height: 5px;
   background-color: #ef4444;
@@ -947,7 +947,7 @@ h1 {
   justify-content: center;
   font-size: 12px;
   /* Emoji size on grid */
-  overflow: hidden;
+  overflow: visible;
 }
 
 .cell-emoji {
