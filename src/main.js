@@ -42,14 +42,33 @@ for (let i = 0; i < days.length; i += CHUNK_SIZE) {
 
 const weekdayMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
-// Render Header
 const header = `
   <header>
     <img src="/logo.svg" alt="App Logo" class="app-logo" />
     <h1>2026 Heatmap</h1>
     <div class="subtitle">一年只是36个10天而已</div>
+    <div id="offline-indicator" class="offline-badge hidden">📡 网络已断开 - 离线模式</div>
   </header>
 `
+
+// Offline/Online Logic
+const updateOnlineStatus = () => {
+  const badge = document.getElementById('offline-indicator')
+  if (badge) {
+    if (navigator.onLine) {
+      badge.classList.add('hidden')
+    } else {
+      badge.classList.remove('hidden')
+    }
+  }
+}
+
+// Listen globally
+window.addEventListener('online', updateOnlineStatus)
+window.addEventListener('offline', updateOnlineStatus)
+
+// Also run once DOM is ready (triggered via timeout to ensure header is injected)
+setTimeout(updateOnlineStatus, 100)
 
 // Easter Egg: Logo Logic
 setTimeout(() => {
@@ -176,6 +195,7 @@ const renderRow = (chunk, index) => {
     <div class="decade-row">
       <div class="row-label">#${index + 1}</div>
       ${cells}
+      <div class="row-spacer"></div>
     </div>
   `
 }
@@ -186,6 +206,7 @@ const headerRow = `
   <div class="header-row">
     <div class="header-label"></div> <!-- Spacer for row labels -->
     ${numbers.map(n => `<div class="col-num">${n}</div>`).join('')}
+    <div class="row-spacer"></div> <!-- Balance right side -->
   </div>
 `
 
@@ -545,7 +566,7 @@ const renderEventsList = () => {
   let doneCount = 0
   let giveupCount = 0
 
-  events.forEach((evt, index) => { // idx for hard delete if needed, but we rely on ID for logic mainly
+  events.forEach((evt, idx) => { // idx for hard delete if needed, but we rely on ID for logic mainly
     // Skip Meta events (Emoji)
     if (evt.status === 'meta') return
 

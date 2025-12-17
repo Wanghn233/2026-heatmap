@@ -107,6 +107,24 @@ h1 {
   font-size: 0.9em;
 }
 
+.offline-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  background-color: #f59e0b;
+  /* Amber-500 */
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.offline-badge.hidden {
+  display: none;
+}
+
 /* Heatmap Container */
 .heatmap-container {
   display: flex;
@@ -291,6 +309,14 @@ h1 {
   font-size: 10px;
   color: var(--text-muted);
   font-family: monospace;
+}
+
+.row-spacer {
+  width: 30px;
+  margin-left: 8px;
+  /* Mirror the label's margin-right */
+  flex-shrink: 0;
+  /* Prevent collapsing */
 }
 
 /* --- Layout & Responsiveness --- */
