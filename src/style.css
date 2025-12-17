@@ -389,7 +389,48 @@ h1 {
   }
 
 
+  .mobile-only {
+    display: block !important;
+  }
+
+  /* Overlay */
+  #panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 200;
+    backdrop-filter: blur(2px);
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+
   #panel-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Bottom Sheet Panel */
+  #event-panel {
+    position: fixed;
+    z-index: 201;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(0);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    display: flex;
+    /* Ensure it overrides any default */
+    flex-direction: column;
+  }
+
+  #event-panel.hidden {
+    transform: translateY(100%);
     opacity: 0;
     pointer-events: none;
   }
