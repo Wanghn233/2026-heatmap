@@ -401,7 +401,7 @@ const openPanel = (dateStr) => {
   const headerHtml = `
     <div style="display:flex; align-items:center">
       <form action="javascript:void(0);" autocomplete="off" style="margin:0;">
-        <input type="search" id="panel-emoji-input" maxlength="2" value="${currentEmoji}" placeholder="☺" autocomplete="off" name="search_emoji" spellcheck="false">
+        <input type="search" id="panel-emoji-input" maxlength="10" value="${currentEmoji}" placeholder="☺" autocomplete="off" name="search_emoji" spellcheck="false">
       </form>
       <div style="display:flex; flex-direction:column; justify-content:center; align-items:flex-start; margin-left: 12px;">
         <div>${line1}</div>
