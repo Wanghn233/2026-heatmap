@@ -68,8 +68,6 @@
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
   background-color: var(--bg-body);
@@ -931,27 +929,33 @@ header.loading .app-logo {
   transform: translateY(20px);
   pointer-events: none;
 }
+
 /* --- UX Polish: No Scrollbar, No Select --- */
 /* Hide Scrollbar Global */
 ::-webkit-scrollbar {
   display: none;
 }
 
-html, body {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-  
+html,
+body {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
+
   /* Disable Text Selection & touch callouts */
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  
-  -webkit-touch-callout: none; /* iOS context menu */
+
+  -webkit-touch-callout: none;
+  /* iOS context menu */
 }
 
 /* Re-enable selection for inputs */
-input, textarea {
+input,
+textarea {
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
