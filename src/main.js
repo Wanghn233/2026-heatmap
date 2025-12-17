@@ -15,7 +15,8 @@ const getLunarStr = (dateStr) => {
   const [y, m, d] = dateStr.split('-').map(Number)
   const solar = Solar.fromYmd(y, m, d)
   const lunar = solar.getLunar()
-  return `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`
+  const jieqi = lunar.getJieQi()
+  return `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}${jieqi ? ' ' + jieqi : ''}`
 }
 
 // --- Data & State ---
