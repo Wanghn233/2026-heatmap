@@ -195,6 +195,7 @@ const renderRow = (chunk, index) => {
     <div class="decade-row">
       <div class="row-label">#${index + 1}</div>
       ${cells}
+      <div class="row-spacer"></div>
     </div>
   `
 }
@@ -205,6 +206,7 @@ const headerRow = `
   <div class="header-row">
     <div class="header-label"></div> <!-- Spacer for row labels -->
     ${numbers.map(n => `<div class="col-num">${n}</div>`).join('')}
+    <div class="row-spacer"></div>
   </div>
 `
 

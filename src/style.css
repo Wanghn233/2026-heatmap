@@ -150,7 +150,7 @@ h1 {
 }
 
 .row-label {
-  width: 30px;
+  width: 20px;
   text-align: right;
   font-size: 10px;
   color: var(--text-muted);
@@ -299,7 +299,7 @@ h1 {
 }
 
 .header-label {
-  width: 30px;
+  width: 20px;
   margin-right: 8px;
 }
 
@@ -311,6 +311,13 @@ h1 {
   font-family: monospace;
 }
 
+.row-spacer {
+  width: 10px;
+  margin-left: 8px;
+  /* Mirror the label's margin-right */
+  flex-shrink: 0;
+  /* Prevent collapsing */
+}
 
 /* --- Layout & Responsiveness --- */
 #app {
