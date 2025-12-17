@@ -352,6 +352,10 @@ const openPanel = (dateStr) => {
 
   panelDateTitle.innerHTML = headerHtml
 
+  // Mobile Fix: Hide tooltip immediately when panel opens
+  const tooltip = document.getElementById('tooltip')
+  if (tooltip) tooltip.style.opacity = '0'
+
   panelOverlay.classList.remove('hidden')
   eventPanel.classList.remove('hidden')
 
