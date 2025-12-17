@@ -677,3 +677,14 @@ giveupListEl.addEventListener('click', handleListClick)
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closePanel()
 })
+
+// --- Global UX Enhancements ---
+// Disable Context Menu (Right-Click) except on inputs
+document.addEventListener('contextmenu', (e) => {
+  // Allow if target is input or textarea, or contenteditable
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+    return true
+  }
+  e.preventDefault()
+  return false
+}, { passive: false })
