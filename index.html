@@ -52,13 +52,14 @@
           <div id="giveup-list" class="event-group"></div>
         </div>
       </div>
-      <div class="panel-input-area">
-        <input type="search" id="event-input" placeholder="做点什么呢..." autocomplete="off" name="q" spellcheck="false" />
+      <form class="panel-input-area" action="javascript:void(0);" autocomplete="off">
+        <input type="search" id="event-input" placeholder="做点什么呢..." autocomplete="off" name="event_content_v1"
+          spellcheck="false" />
         <div class="input-actions">
-          <button id="add-todo-btn" class="action-btn" title="Add to Todo">＋</button>
-          <button id="add-done-btn" class="action-btn done" title="Add as Done">✓</button>
+          <button type="button" id="add-todo-btn" class="action-btn" title="Add to Todo">＋</button>
+          <button type="button" id="add-done-btn" class="action-btn done" title="Add as Done">✓</button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 

@@ -361,6 +361,7 @@ const eventInput = document.getElementById('event-input')
 const addTodoBtn = document.getElementById('add-todo-btn')
 const addDoneBtn = document.getElementById('add-done-btn')
 const closeBtn = document.getElementById('close-btn')
+const eventListContainer = document.getElementById('event-list-container')
 
 // Listeners
 authBtn.addEventListener('click', handleLogin)
@@ -528,14 +529,15 @@ const renderEventsList = () => {
   doneListEl.parentElement.style.display = doneCount > 0 ? 'block' : 'none'
   giveupListEl.parentElement.style.display = giveupCount > 0 ? 'block' : 'none'
 
-  // Empty State (Show inside container if absolutely nothing)
-  // We can stick this message into the container directly or reuse one of the sections
+  // Manage Empty State
+  const existingMsg = eventListContainer.querySelector('.empty-state')
+  if (existingMsg) existingMsg.remove()
+
   if (todoCount === 0 && doneCount === 0 && giveupCount === 0) {
-    // Show a simple message in the container if totally empty
-    // But since we hid all sections, the container is blank. 
-    // Let's force show the todo section to hold the empty message
-    todoListEl.parentElement.style.display = 'block'
-    todoListEl.innerHTML = '<div class="empty-state">No tasks yet.</div>'
+    const msg = document.createElement('div')
+    msg.className = 'empty-state'
+    msg.textContent = '今日无事.'
+    eventListContainer.appendChild(msg)
   }
 }
 
