@@ -1,5 +1,5 @@
+import { Solar } from 'lunar-javascript';
 import './style.css'
-
 const app = document.querySelector('#app')
 
 // Helper to format date (Local Time to avoid UTC shift bug)
@@ -9,6 +9,22 @@ const formatDate = (date) => {
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
+
+// Lunar Helper
+const getLunarStr = (dateStr) => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const solar = Solar.fromYmd(y, m, d)
+  const lunar = solar.getLunar()
+  return `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`
+}
+
+// --- Data & State ---
+// ... (rest of imports/state)
+
+// ... (skipping to openPanel modification)
+// I need to use multiple replacements or locate the code block precisely.
+// Since 'openPanel' is quite down, let me update the imports first and add the helper.
+
 
 // Generate 2026 dates
 const startDate = new Date('2026-01-01T00:00:00')
@@ -187,16 +203,34 @@ heatmapEl.addEventListener('mouseover', (e) => {
 
     // Build Tooltip Content
     let text = `<span style="font-weight:600">${date} ${weekday}</span>`
+    const lunar = getLunarStr(date)
+
+    // Line 2: Lunar + Holiday
+    text += `<br><span style="font-size:0.8em; opacity:0.7; color: var(--text-muted)">${lunar}`
+    if (holiday) {
+      text += ` <strong style="color: #fbbf24; margin-left:4px">🎉 ${holiday}</strong>`
+    }
+    text += `</span>`
 
     if (makeup) {
-      text += ` <span style="color: #ef4444; font-weight:bold;">(班)</span>`
+      // Put makeup on first line or end? Let's keep separate or append to line 1.
+      // Previous code appended to text, likely line 1. Let's append to line 1 for consistency or line 2?
+      // Re-reading previous logic: makeup was appended before lunar.
+      // Let's modify:
     }
 
-    if (holiday) {
-      text += `<br><strong style="color: #fbbf24">🎉 ${holiday}</strong>`
-    }
+    // Refined logic:
+    // Line 1: Date Weekday [Makeup]
+    // Line 2: Lunar [Holiday]
 
-    tooltip.innerHTML = text
+    let line1 = `<span style="font-weight:600">${date} ${weekday}</span>`
+    if (makeup) line1 += ` <span style="color: #ef4444; font-weight:bold;">(班)</span>`
+
+    let line2 = `<span style="font-size:0.8em; opacity:0.7; color: var(--text-muted)">${lunar}`
+    if (holiday) line2 += ` <strong style="color: #fbbf24; margin-left:4px; opacity:1">🎉 ${holiday}</strong>`
+    line2 += `</span>`
+
+    tooltip.innerHTML = line1 + "<br>" + line2
     tooltip.style.opacity = '1'
 
     // Position slightly above the element
@@ -342,15 +376,29 @@ const openPanel = (dateStr) => {
   const holiday = holidays[dateStr]
   const isMakeup = makeupWorkdays.includes(dateStr)
   const currentEmoji = getEmoji(dateStr)
+  const lunar = getLunarStr(dateStr)
 
-  let headerHtml = `<input id="panel-emoji-input" maxlength="2" value="${currentEmoji}" placeholder="☺" autocomplete="off">`
-  headerHtml += `<span style="margin-right:8px">${dateStr}</span><span style="font-size:0.85em; opacity:0.8; margin-right:8px">${weekday}</span>`
+  let line1 = `<span style="margin-right:8px">${dateStr}</span><span style="font-size:0.85em; opacity:0.8">${weekday}</span>`
+
+  let line2 = `<span>${lunar}</span>`
 
   if (holiday) {
-    headerHtml += `<span style="font-size:0.85em; color:var(--holiday-color)">🎉 ${holiday}</span>`
+    line2 += `<span style="font-size:0.9em; color:var(--holiday-color); margin-left:6px">🎉 ${holiday}</span>`
   } else if (isMakeup) {
-    headerHtml += `<span style="font-size:0.85em; color:#ef4444">班</span>`
+    line2 += `<span style="font-size:0.9em; color:#ef4444; margin-left:6px">班</span>`
   }
+
+  const headerHtml = `
+    <div style="display:flex; align-items:center">
+      <input id="panel-emoji-input" maxlength="2" value="${currentEmoji}" placeholder="☺" autocomplete="off">
+      <div style="display:flex; flex-direction:column; justify-content:center; align-items:flex-start; margin-left: 12px;">
+        <div>${line1}</div>
+        <div style="font-size:0.75em; color:var(--text-muted); line-height:1.2; margin-top:4px; display:flex; align-items:center">
+          ${line2}
+        </div>
+      </div>
+    </div>
+  `
 
   panelDateTitle.innerHTML = headerHtml
 
