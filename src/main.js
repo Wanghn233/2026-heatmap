@@ -690,3 +690,8 @@ document.addEventListener('contextmenu', (e) => {
   e.preventDefault()
   return false
 }, { passive: false })
+
+// Disable Pinch Zoom (iOS Safari)
+document.addEventListener('gesturestart', (e) => {
+  e.preventDefault()
+})
