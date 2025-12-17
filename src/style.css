@@ -72,6 +72,8 @@ body {
   min-height: 100vh;
   background-color: var(--bg-body);
   color: var(--text-main);
+  overflow-x: hidden;
+  /* Prevent horizontal scroll */
 }
 
 #app {
@@ -116,6 +118,9 @@ h1 {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--border-color);
   overflow-x: auto;
+  max-width: 100%;
+  /* Ensure it fits in parent */
+  box-sizing: border-box;
 }
 
 /* Row (Decade - 10 days) */
@@ -273,12 +278,13 @@ h1 {
 
 /* --- Layout & Responsiveness --- */
 #app {
-  /* Ensure heatmap is centered */
-  width: fit-content;
+  width: 100%;
+  max-width: 1280px;
+  box-sizing: border-box;
+  /* Include padding in width */
   margin: 0 auto;
   padding: 2rem;
   position: relative;
-  /* Anchor for sidebar */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -377,50 +383,55 @@ h1 {
     width: 100%;
     /* Reset width */
     display: block;
-    padding: 1rem;
+    padding: 0.5rem;
+    /* Reduce padding on mobile */
+    overflow-x: hidden;
   }
 
-  .mobile-only {
-    display: block !important;
-  }
 
-  #event-panel {
-    position: fixed;
-    z-index: 201;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    max-height: 80vh;
-    border-radius: 16px 16px 0 0;
-    transform: translateY(0);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
-  }
+}
 
-  #event-panel.hidden {
-    transform: translateY(100%);
-    opacity: 0;
-    pointer-events: none;
-  }
+.mobile-only {
+  display: block !important;
+}
 
-  /* Overlay */
-  #panel-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 200;
-    backdrop-filter: blur(2px);
-    opacity: 1;
-    transition: opacity 0.3s;
-  }
+#event-panel {
+  position: fixed;
+  z-index: 201;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-height: 80vh;
+  border-radius: 16px 16px 0 0;
+  transform: translateY(0);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+}
 
-  #panel-overlay.hidden {
-    opacity: 0;
-    pointer-events: none;
-  }
+#event-panel.hidden {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Overlay */
+#panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  backdrop-filter: blur(2px);
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+#panel-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
 }
 
 /* --- Panel Internal UI --- */
