@@ -380,19 +380,18 @@ const handleLogin = () => {
 };
 
 // Updated API Functions with Auth
-const loadAllEvents = async () => {
+const loadAllEvents = async (isSilent = false) => {
   // Creative Loading: Hide Heatmap, Animate Logo & Title
   const headerEl = document.querySelector("header");
   const dashboard = document.querySelector("#content-area");
 
-  if (headerEl) headerEl.classList.add("loading");
-  if (dashboard) dashboard.classList.add("hidden-loading");
-
-  // Artificial delay to show off animation (optional, but good for UX feel if API is too fast)
-  // await new Promise(r => setTimeout(r, 800))
+  if (!isSilent) {
+    if (headerEl) headerEl.classList.add("loading");
+    if (dashboard) dashboard.classList.add("hidden-loading");
+  }
 
   try {
-    console.log("Fetching data...");
+    if (!isSilent) console.log("Fetching data...");
     const res = await fetch(API_URL, {
       headers: {
         Authorization: `Bearer ${authToken}`, // Send token
@@ -416,14 +415,32 @@ const loadAllEvents = async () => {
       Object.keys(eventsData).forEach((date) => {
         updateCellHeatmap(date);
       });
-      console.log("Data loaded");
+
+      // If panel is open, refresh the list safely
+      if (currentSelectedDate && !document.querySelector(".edit-input:focus")) {
+        // Only re-render if we are NOT currently editing a specific item (active element check)
+        // But since we use innerHTML replacement, any focus would be lost anyway.
+        // So the check `!document.querySelector('.edit-input:focus')` is crucial.
+        // If user is editing, we skip list refresh to avoid interrupting them.
+        // They will see updates next time they open panel or finish editing.
+        if (
+          document.activeElement.tagName !== "INPUT" &&
+          document.activeElement.tagName !== "TEXTAREA"
+        ) {
+          renderEventsList();
+        }
+      }
+
+      if (!isSilent) console.log("Data loaded");
     }
   } catch (err) {
     console.warn("Failed to fetch events:", err);
   } finally {
     // Stop Loading
-    if (headerEl) headerEl.classList.remove("loading");
-    if (dashboard) dashboard.classList.remove("hidden-loading");
+    if (!isSilent) {
+      if (headerEl) headerEl.classList.remove("loading");
+      if (dashboard) dashboard.classList.remove("hidden-loading");
+    }
   }
 };
 
@@ -438,10 +455,20 @@ const saveEvents = async (dateStr) => {
       },
       body: JSON.stringify({ date: dateStr, events }),
     });
+    // Silent Sync after save to catch up with other devices
+    loadAllEvents(true);
   } catch (err) {
     console.error("Save failed:", err);
   }
 };
+
+// Auto-Sync on Visibility Change (Tab Switch / App Switch)
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && authToken) {
+    console.log("App resumed, syncing...");
+    loadAllEvents(true);
+  }
+});
 
 // DOM Elements (Panel)
 const panelOverlay = document.getElementById("panel-overlay");
@@ -602,7 +629,11 @@ const openPanel = (dateStr) => {
 
   panelOverlay.classList.remove("hidden");
   eventPanel.classList.remove("hidden");
-  document.body.style.overflow = "hidden"; // Lock Body Scroll
+
+  // Lock Body Scroll only on Mobile
+  if (window.innerWidth < 800) {
+    document.body.style.overflow = "hidden";
+  }
 
   // Focus input on desktop
   if (window.innerWidth > 640) {
@@ -616,7 +647,7 @@ const openPanel = (dateStr) => {
 const hidePanelUI = () => {
   panelOverlay.classList.add("hidden");
   eventPanel.classList.add("hidden");
-  document.body.style.overflow = ""; // Unlock Body Scroll
+  document.body.style.overflow = ""; // Always unlock on close
   // Don't clear currentSelectedDate immediately to avoid render glitches during transition
 };
 
