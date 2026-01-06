@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "lunar-javascript": "^1.7.7",
-    "redis": "^5.10.0"
+    "redis": "^5.10.0",
+    "sortablejs": "^1.15.6"
   }
 }
