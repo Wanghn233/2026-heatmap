@@ -754,8 +754,8 @@ const updateCellHeatmap = (dateStr) => {
   let level = 0;
   if (doneCount > 0) level = 1;
   if (doneCount >= 2) level = 2;
-  if (doneCount >= 4) level = 3;
-  if (doneCount >= 6) level = 4;
+  if (doneCount >= 5) level = 3;
+  if (doneCount >= 7) level = 4;
 
   const cell = document.querySelector(`.day-cell[data-date="${dateStr}"]`);
   if (cell) {
