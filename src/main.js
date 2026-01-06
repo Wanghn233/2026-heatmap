@@ -886,7 +886,9 @@ const handleListClick = (e) => {
 
     // Create Input
     const input = document.createElement("input");
-    input.type = "text";
+    input.type = "search";
+    input.setAttribute("autocomplete", "off");
+    input.setAttribute("spellcheck", "false");
     input.value = currentText;
     input.className = "edit-input";
 
