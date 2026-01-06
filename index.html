@@ -1,86 +1,123 @@
 <!doctype html>
 <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        />
+        <title>2026 Heatmap</title>
+        <!-- PWA Status Bar Color -->
+        <meta
+            name="theme-color"
+            content="#f4f4f5"
+            media="(prefers-color-scheme: light)"
+        />
+        <meta
+            name="theme-color"
+            content="#09090b"
+            media="(prefers-color-scheme: dark)"
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            /* Critical CSS to prevent FOUC (Flash of Unstyled Content) */
+            .hidden {
+                opacity: 0 !important;
+                pointer-events: none !important;
+                visibility: hidden !important;
+            }
+        </style>
+    </head>
 
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>2026 Heatmap</title>
-  <!-- PWA Status Bar Color -->
-  <meta name="theme-color" content="#f4f4f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <style>
-    /* Critical CSS to prevent FOUC (Flash of Unstyled Content) */
-    .hidden {
-      opacity: 0 !important;
-      pointer-events: none !important;
-      visibility: hidden !important;
-    }
-  </style>
-</head>
-
-<body>
-  <div id="app">
-    <div id="heatmap-section">
-      <!-- Content injected by main.js will go here eventually,
+    <body>
+        <div id="app">
+            <div id="heatmap-section">
+                <!-- Content injected by main.js will go here eventually,
            but main.js currently overwrites app.innerHTML.
            We need to adjust main.js to target #heatmap-section instead. -->
-    </div>
+            </div>
 
-    <!-- Event Panel (Desktop: Side Column, Mobile: Bottom Sheet) -->
-    <div id="event-panel" class="hidden">
-      <div class="panel-header">
-        <h2 id="panel-date">Select a date</h2>
-        <button id="close-btn" class="mobile-only">&times;</button>
-      </div>
-      <div id="event-list-container">
-        <div class="list-section">
-          <h3 class="section-title">TODO</h3>
-          <div id="todo-list" class="event-group"></div>
+            <!-- Event Panel (Desktop: Side Column, Mobile: Bottom Sheet) -->
+            <div id="event-panel" class="hidden">
+                <div class="panel-header">
+                    <h2 id="panel-date">Select a date</h2>
+                    <button id="close-btn" class="mobile-only">&times;</button>
+                </div>
+                <div id="event-list-container">
+                    <div class="list-section">
+                        <h3 class="section-title">TODO</h3>
+                        <div id="todo-list" class="event-group"></div>
+                    </div>
+
+                    <div class="list-section">
+                        <h3 class="section-title">DONE</h3>
+                        <div id="done-list" class="event-group"></div>
+                    </div>
+
+                    <div class="list-section">
+                        <h3 class="section-title">GIVE UP</h3>
+                        <div id="giveup-list" class="event-group"></div>
+                    </div>
+                </div>
+                <form
+                    class="panel-input-area"
+                    action="javascript:void(0);"
+                    autocomplete="off"
+                >
+                    <input
+                        type="search"
+                        id="event-input"
+                        placeholder="做点什么呢..."
+                        autocomplete="off"
+                        name="event_content_v1"
+                        spellcheck="false"
+                    />
+                    <div class="input-actions">
+                        <button
+                            type="button"
+                            id="add-done-btn"
+                            class="action-btn done"
+                            title="Add as Done"
+                        >
+                            ✓
+                        </button>
+                        <button
+                            type="button"
+                            id="add-todo-btn"
+                            class="action-btn"
+                            title="Add to Todo"
+                        >
+                            ＋
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div class="list-section">
-          <h3 class="section-title">DONE</h3>
-          <div id="done-list" class="event-group"></div>
+        <!-- Event Panel Overlay (Mobile Only) -->
+        <div id="panel-overlay" class="hidden mobile-only"></div>
+
+        <!-- Auth Modal (Force Screen) -->
+        <div id="auth-modal" class="hidden">
+            <div class="auth-container">
+                <img src="/logo.svg" class="auth-logo" alt="Logo" />
+                <h2>Welcome Back</h2>
+                <p>Enter password to unlock your 2026 plan</p>
+                <input
+                    type="password"
+                    id="auth-input"
+                    placeholder="Access Password"
+                />
+                <button id="auth-btn">Unlock</button>
+            </div>
         </div>
 
-        <div class="list-section">
-          <h3 class="section-title">GIVE UP</h3>
-          <div id="giveup-list" class="event-group"></div>
-        </div>
-      </div>
-      <form class="panel-input-area" action="javascript:void(0);" autocomplete="off">
-        <input type="search" id="event-input" placeholder="做点什么呢..." autocomplete="off" name="event_content_v1"
-          spellcheck="false" />
-        <div class="input-actions">
-          <button type="button" id="add-todo-btn" class="action-btn" title="Add to Todo">＋</button>
-          <button type="button" id="add-done-btn" class="action-btn done" title="Add as Done">✓</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Event Panel Overlay (Mobile Only) -->
-  <div id="panel-overlay" class="hidden mobile-only"></div>
-
-  <!-- Auth Modal (Force Screen) -->
-  <div id="auth-modal" class="hidden">
-    <div class="auth-container">
-      <img src="/logo.svg" class="auth-logo" alt="Logo">
-      <h2>Welcome Back</h2>
-      <p>Enter password to unlock your 2026 plan</p>
-      <input type="password" id="auth-input" placeholder="Access Password" />
-      <button id="auth-btn">Unlock</button>
-    </div>
-  </div>
-
-
-
-  <script type="module" src="/src/main.js"></script>
-</body>
-
+        <script type="module" src="/src/main.js"></script>
+    </body>
 </html>

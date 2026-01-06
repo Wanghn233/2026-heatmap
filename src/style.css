@@ -770,26 +770,25 @@ h1 {
     color: #fff;
 }
 
-/* Add Todo Button (Default/Blue-ish or Theme color) */
+/* Add Todo Button (Priority - Theme Color) */
 #add-todo-btn {
-    background: var(--border-color);
-    /* Neutral for Todo */
-    color: var(--text-main);
+    background: var(--weekend-color);
+    color: #fff;
 }
 
 #add-todo-btn:hover {
-    background: var(--text-muted);
+    filter: brightness(110%);
+    box-shadow: 0 0 8px var(--weekend-color);
 }
 
-/* Add Done Button (Green/Theme Highlight) */
+/* Add Done Button (Secondary - Neutral) */
 #add-done-btn.done {
-    background: var(--weekend-color);
-    /* Cyan/Theme color */
+    background: var(--border-color);
+    color: var(--text-main);
 }
 
 #add-done-btn.done:hover {
-    filter: brightness(110%);
-    box-shadow: 0 0 8px var(--weekend-color);
+    background: var(--text-muted);
 }
 
 /* --- App Logo --- */
