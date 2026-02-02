@@ -82,7 +82,8 @@ const buildPrompt = (mode, payload) => {
     system:
       `${role}` +
       `输出要求：不超过8行，使用短句/要点；保留任务原文；不要发散，不要编造；` +
-      `语气关怀但克制，不说空话；可给出1句鼓励或提醒。`,
+      `语气关怀但克制，不说空话；可给出1句鼓励或提醒；` +
+      `任务名称必须使用「」包裹。`,
     user:
       `当前时间（UTC+8）：${payload.now}\n` +
       `今日：${payload.today.date} ${payload.today.weekday}${
@@ -110,8 +111,8 @@ const buildPrompt = (mode, payload) => {
         )
         .join("\n")}\n\n` +
       `请根据模式输出：\n` +
-      `- 早上：用自然语气串联当日、积压与未来3天；先提节假日影响，再说今日重点与积压提醒，最后加一句鼓励；提到的任务不要省略。\n` +
-      `- 晚上：用自然语气回顾今日完成/未完成，并给出迁移建议，最后加一句肯定；提到的任务不要省略。\n\n` +
+      `- 早上：用自然语气串联当日、积压与未来3天；先提节假日影响，再说今日重点与积压提醒，最后加一句鼓励；提到的任务不要省略；任务名称用「」包裹。\n` +
+      `- 晚上：用自然语气回顾今日完成/未完成，并给出迁移建议，最后加一句肯定；提到的任务不要省略；任务名称用「」包裹。\n\n` +
       `完整示例（仅参考结构与语气，勿照抄）：\n` +
       `【输入-早上】\n` +
       `当前时间（UTC+8）：2026-02-02 08:05:00 (UTC+8)\n` +
@@ -299,9 +300,21 @@ export default async function handler(request, response) {
       `今日${payload.today.date} ${payload.today.weekday} ${
         payload.today.holiday ? `（节假日：${payload.today.holiday}）` : ""
       }\n` +
-      `todo: ${payload.today.tasks.todo.join("；") || "无"}\n` +
-      `done: ${payload.today.tasks.done.join("；") || "无"}\n` +
-      `giveup: ${payload.today.tasks.giveup.join("；") || "无"}\n` +
+      `todo: ${
+        payload.today.tasks.todo.length
+          ? payload.today.tasks.todo.map((t) => `「${t}」`).join("；")
+          : "无"
+      }\n` +
+      `done: ${
+        payload.today.tasks.done.length
+          ? payload.today.tasks.done.map((t) => `「${t}」`).join("；")
+          : "无"
+      }\n` +
+      `giveup: ${
+        payload.today.tasks.giveup.length
+          ? payload.today.tasks.giveup.map((t) => `「${t}」`).join("；")
+          : "无"
+      }\n` +
       (normalizedMode === "evening"
         ? "今天辛苦了，哪怕只完成一点也值得肯定。"
         : "早安，今天我们从最重要的一件事开始。");
