@@ -46,7 +46,7 @@ const weekdayMap = ["周日", "周一", "周二", "周三", "周四", "周五", 
 const header = `
   <header>
     <img src="/logo.svg" alt="App Logo" class="app-logo" />
-    <h1>2026 Heatmap</h1>
+    <h1><span class="year-title" data-year="2026">2026</span> Heatmap</h1>
     <div class="subtitle">一年只是36个10天而已</div>
     <div id="offline-indicator" class="offline-badge hidden">📡 网络已断开 - 离线模式</div>
   </header>
@@ -275,6 +275,14 @@ heatmapSection.innerHTML = `
   </div>
 `;
 
+const yearTitle = document.querySelector(".year-title");
+if (yearTitle) {
+  yearTitle.addEventListener("click", () => {
+    const yearStr = yearTitle.getAttribute("data-year") || "2026";
+    openYearPanel(yearStr);
+  });
+}
+
 // --- Tooltip Logic ---
 const tooltip = document.createElement("div");
 // (Keep tooltip logic as is)
@@ -342,6 +350,7 @@ heatmapEl.addEventListener("mouseout", (e) => {
 
 // Data Store
 let eventsData = {};
+const GLOBAL_KEY = "year-2026";
 
 // API Functions
 const API_URL = "/api/events";
@@ -417,7 +426,7 @@ const loadAllEvents = async (isSilent = false) => {
       });
 
       // If panel is open, refresh the list safely
-      if (currentSelectedDate && !document.querySelector(".edit-input:focus")) {
+      if (getCurrentKey() && !document.querySelector(".edit-input:focus")) {
         // Only re-render if we are NOT currently editing a specific item (active element check)
         // But since we use innerHTML replacement, any focus would be lost anyway.
         // So the check `!document.querySelector('.edit-input:focus')` is crucial.
@@ -487,7 +496,8 @@ const eventListContainer = document.getElementById("event-list-container");
 
 // --- SortableJS Init ---
 const handleSort = (evt) => {
-  if (!currentSelectedDate || !eventsData[currentSelectedDate]) return;
+  const key = getCurrentKey();
+  if (!key || !eventsData[key]) return;
 
   // Helper to extract IDs from a list container
   const getIds = (container) => {
@@ -502,7 +512,7 @@ const handleSort = (evt) => {
   const giveupIds = getIds(giveupListEl);
 
   // Get existing Meta events (we don't render them but need to keep them)
-  const currentEvents = eventsData[currentSelectedDate];
+  const currentEvents = eventsData[key];
   const metaEvents = currentEvents.filter((e) => e.status === "meta");
 
   // Reconstruct the master list
@@ -534,10 +544,10 @@ const handleSort = (evt) => {
   newEvents.push(...metaEvents);
 
   // Update Data
-  eventsData[currentSelectedDate] = newEvents;
+  eventsData[key] = newEvents;
 
   // Save
-  saveEvents(currentSelectedDate);
+  saveEvents(key);
 };
 
 const sortableOptions = {
@@ -567,9 +577,18 @@ authInput.addEventListener("keydown", (e) => {
 initApp();
 
 let currentSelectedDate = null;
+let currentMode = "date"; // "date" | "year"
+
+const getCurrentKey = () => {
+  if (currentMode === "year") return GLOBAL_KEY;
+  return currentSelectedDate;
+};
+
+const isDateKey = (key) => /^\d{4}-\d{2}-\d{2}$/.test(key);
 
 // Functions
 const openPanel = (dateStr) => {
+  currentMode = "date";
   currentSelectedDate = dateStr;
   renderEventsList();
 
@@ -644,6 +663,45 @@ const openPanel = (dateStr) => {
   window.history.pushState({ panel: "open" }, "");
 };
 
+const openYearPanel = (yearStr) => {
+  currentMode = "year";
+  currentSelectedDate = null;
+  renderEventsList();
+
+  const headerHtml = `
+    <div style="display:flex; align-items:center">
+      <div style="display:flex; flex-direction:column; justify-content:center; align-items:flex-start;">
+        <div><span style="margin-right:8px">${yearStr}</span><span style="font-size:0.85em; opacity:0.8">年度计划</span></div>
+        <div style="font-size:0.75em; color:var(--text-muted); line-height:1.2; margin-top:4px; display:flex; align-items:center">
+        今年要做些什么事呢？
+        </div>
+      </div>
+    </div>
+  `;
+
+  panelDateTitle.innerHTML = headerHtml;
+
+  // Mobile Fix: Hide tooltip immediately when panel opens
+  const tooltip = document.getElementById("tooltip");
+  if (tooltip) tooltip.style.opacity = "0";
+
+  panelOverlay.classList.remove("hidden");
+  eventPanel.classList.remove("hidden");
+
+  // Lock Body Scroll only on Mobile
+  if (window.innerWidth < 800) {
+    document.body.style.overflow = "hidden";
+  }
+
+  // Focus input on desktop
+  if (window.innerWidth > 640) {
+    setTimeout(() => eventInput.focus(), 100);
+  }
+
+  // Push history state so Back button closes panel
+  window.history.pushState({ panel: "open" }, "");
+};
+
 const hidePanelUI = () => {
   panelOverlay.classList.add("hidden");
   eventPanel.classList.add("hidden");
@@ -688,9 +746,10 @@ const setEmoji = (date, char) => {
 };
 
 const renderEventsList = () => {
-  if (!currentSelectedDate) return;
+  const key = getCurrentKey();
+  if (!key) return;
 
-  const events = eventsData[currentSelectedDate] || [];
+  const events = eventsData[key] || [];
 
   // Clear lists
   todoListEl.innerHTML = "";
@@ -740,12 +799,13 @@ const renderEventsList = () => {
   if (todoCount === 0 && doneCount === 0 && giveupCount === 0) {
     const msg = document.createElement("div");
     msg.className = "empty-state";
-    msg.textContent = "今日无事.";
+    msg.textContent = currentMode === "year" ? "全年无事." : "今日无事.";
     eventListContainer.appendChild(msg);
   }
 };
 
 const updateCellHeatmap = (dateStr) => {
+  if (!isDateKey(dateStr)) return;
   const events = eventsData[dateStr] || [];
   // Only count DONE tasks for heat level
   const doneCount = events.filter((e) => e.status === "done").length;
@@ -771,13 +831,14 @@ const updateCellHeatmap = (dateStr) => {
 const addEvent = (status = "todo") => {
   // Accept status
   const text = eventInput.value.trim();
-  if (!text || !currentSelectedDate) return;
+  const key = getCurrentKey();
+  if (!text || !key) return;
 
-  if (!eventsData[currentSelectedDate]) {
-    eventsData[currentSelectedDate] = [];
+  if (!eventsData[key]) {
+    eventsData[key] = [];
   }
 
-  eventsData[currentSelectedDate].push({
+  eventsData[key].push({
     text,
     id: Date.now(),
     status: status, // Use passed status
@@ -785,45 +846,48 @@ const addEvent = (status = "todo") => {
 
   eventInput.value = "";
   renderEventsList();
-  updateCellHeatmap(currentSelectedDate);
-  saveEvents(currentSelectedDate); // Cloud Save
+  updateCellHeatmap(key);
+  saveEvents(key); // Cloud Save
 };
 
 const updateEventText = (id, newText) => {
-  if (!currentSelectedDate || !eventsData[currentSelectedDate]) return;
+  const key = getCurrentKey();
+  if (!key || !eventsData[key]) return;
 
-  const event = eventsData[currentSelectedDate].find((e) => e.id == id);
+  const event = eventsData[key].find((e) => e.id == id);
   if (event) {
     event.text = newText;
     renderEventsList();
-    saveEvents(currentSelectedDate);
+    saveEvents(key);
   }
 };
 
 const deleteEvent = (idx) => {
-  if (!currentSelectedDate || !eventsData[currentSelectedDate]) return;
+  const key = getCurrentKey();
+  if (!key || !eventsData[key]) return;
 
-  const evt = eventsData[currentSelectedDate][idx];
+  const evt = eventsData[key][idx];
 
   if (evt.status === "giveup") {
     // Hard Delete
-    eventsData[currentSelectedDate].splice(idx, 1);
+    eventsData[key].splice(idx, 1);
   } else {
     // Soft Delete -> Give Up
     evt.status = "giveup";
   }
 
   renderEventsList();
-  updateCellHeatmap(currentSelectedDate);
-  saveEvents(currentSelectedDate); // Cloud Save
+  updateCellHeatmap(key);
+  saveEvents(key); // Cloud Save
 };
 
 // Toggle: Todo <-> Done.
 // Giveup -> Todo (Restore)
 const toggleEventStatus = (id) => {
-  if (!currentSelectedDate || !eventsData[currentSelectedDate]) return;
+  const key = getCurrentKey();
+  if (!key || !eventsData[key]) return;
 
-  const event = eventsData[currentSelectedDate].find((e) => e.id == id);
+  const event = eventsData[key].find((e) => e.id == id);
   if (event) {
     if (event.status === "giveup") {
       event.status = "todo"; // Restore
@@ -831,8 +895,8 @@ const toggleEventStatus = (id) => {
       event.status = event.status === "done" ? "todo" : "done";
     }
     renderEventsList();
-    updateCellHeatmap(currentSelectedDate);
-    saveEvents(currentSelectedDate); // Cloud Save
+    updateCellHeatmap(key);
+    saveEvents(key); // Cloud Save
   }
 };
 
