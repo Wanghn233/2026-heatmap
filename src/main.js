@@ -1,5 +1,6 @@
 import { Solar } from "lunar-javascript";
 import Sortable from "sortablejs";
+import { calculateYunmaiMetrics } from "../lib/yunmai-metrics.js";
 import "./style.css";
 const app = document.querySelector("#app");
 
@@ -43,13 +44,79 @@ for (let i = 0; i < days.length; i += CHUNK_SIZE) {
 
 const weekdayMap = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
-const header = `
+const VIEWS = {
+  memo: "memo",
+  weight: "weight",
+};
+
+const WEIGHT_API_URL = "/api/weight";
+const WEIGHT_USER_PROFILES = {
+  user1: { birthDate: "2000-08-18", heightCm: 175, sex: "male" },
+  user2: { birthDate: "2000-02-22", heightCm: 164, sex: "female" },
+};
+const WEIGHT_SERIES = [
+  { id: "user1_morning", label: "大宝贝 · 早上", color: "#22d3ee" },
+  { id: "user1_evening", label: "大宝贝 · 晚上", color: "#14b8a6" },
+  { id: "user2_morning", label: "小宝贝 · 早上", color: "#f59e0b" },
+  { id: "user2_evening", label: "小宝贝 · 晚上", color: "#ef4444" },
+];
+const savedView = localStorage.getItem("year_active_view");
+let currentView = Object.values(VIEWS).includes(savedView)
+  ? savedView
+  : VIEWS.memo;
+let weightRecords = [];
+let weightActiveSeries = new Set(WEIGHT_SERIES.map((series) => series.id));
+let expandedWeightRecordIds = new Set();
+let weightLoading = false;
+let weightError = "";
+
+const renderMemoHeader = () => `
   <header>
     <img src="/logo.svg" alt="App Logo" class="app-logo" />
     <h1><span class="year-title" data-year="2026">2026</span> Heatmap</h1>
     <div class="subtitle">一年只是36个10天而已</div>
     <div id="offline-indicator" class="offline-badge hidden">📡 网络已断开 - 离线模式</div>
   </header>
+`;
+
+const renderWeightView = () => `
+  <section id="weight-view" class="page-view ${currentView === VIEWS.weight ? "active" : ""}">
+    <div class="weight-shell">
+      <header class="feature-header">
+        <h1>Weight🐷</h1>
+        <p class="feature-copy">吃饱了才有力气减肥。</p>
+      </header>
+      <section class="weight-summary" id="weight-summary"></section>
+      <section class="weight-card">
+        <div class="section-head">
+          <h2>折线图结构</h2>
+          <span id="weight-sync-status" class="section-meta">等待同步</span>
+        </div>
+        <div id="weight-series-filters" class="weight-series-filters"></div>
+        <div class="weight-chart-card">
+          <div class="weight-chart-stage">
+            <div class="weight-chart-axis">
+              <span>晨起</span>
+              <span>晚间</span>
+            </div>
+            <div id="weight-chart-empty" class="weight-chart-empty">暂无可绘制的数据</div>
+            <div id="weight-chart-grid" class="weight-chart-grid"></div>
+          </div>
+        </div>
+      </section>
+      <section class="weight-card">
+        <div class="section-head">
+          <h2>最近记录</h2>
+          <div class="section-head-actions">
+            <span id="weight-count" class="section-meta"></span>
+            <button type="button" id="weight-add-btn" class="section-action-btn">添加</button>
+          </div>
+        </div>
+        <div id="weight-empty" class="empty-state hidden">还没有体重记录。</div>
+        <div id="weight-list" class="weight-list"></div>
+      </section>
+    </div>
+  </section>
 `;
 
 // Offline/Online Logic
@@ -263,17 +330,712 @@ const legend = `
   </div>
 `;
 
-// Render Main Content
-// Target the heatmap section specifically
-const heatmapSection = document.querySelector("#heatmap-section");
+const renderAppShell = () => {
+  const heatmapSection = document.querySelector("#heatmap-section");
+  heatmapSection.innerHTML = `
+    <div class="app-shell">
+      <button id="menu-toggle" class="menu-toggle" type="button" aria-label="打开菜单" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div id="app-drawer-overlay" class="app-drawer-overlay hidden"></div>
+      <aside id="app-drawer" class="app-drawer" aria-hidden="true">
+        <div class="drawer-header">
+          <div>
+            <div class="drawer-title">功能菜单</div>
+            <div class="drawer-subtitle">当前主页是Heatmap</div>
+          </div>
+          <button id="drawer-close" class="drawer-close" type="button" aria-label="关闭菜单">&times;</button>
+        </div>
+        <nav class="drawer-nav">
+          <button type="button" class="drawer-link ${currentView === VIEWS.memo ? "active" : ""}" data-view="${VIEWS.memo}">Heatmap</button>
+          <button type="button" class="drawer-link ${currentView === VIEWS.weight ? "active" : ""}" data-view="${VIEWS.weight}">Weight</button>
+        </nav>
+      </aside>
+      <section id="memo-view" class="page-view ${currentView === VIEWS.memo ? "active" : ""}">
+        ${renderMemoHeader()}
+        <div id="content-area">
+          ${heatmap}
+          ${legend}
+        </div>
+      </section>
+      ${renderWeightView()}
+    </div>
+  `;
+};
 
-heatmapSection.innerHTML = `
-  ${header}
-  <div id="content-area">
-    ${heatmap}
-    ${legend}
-  </div>
-`;
+renderAppShell();
+
+const menuToggleBtn = document.getElementById("menu-toggle");
+const drawerCloseBtn = document.getElementById("drawer-close");
+const drawerEl = document.getElementById("app-drawer");
+const drawerOverlayEl = document.getElementById("app-drawer-overlay");
+const pageViews = document.querySelectorAll(".page-view");
+const drawerLinks = document.querySelectorAll(".drawer-link");
+
+const setDrawerOpen = (isOpen) => {
+  drawerEl.classList.toggle("open", isOpen);
+  drawerOverlayEl.classList.toggle("hidden", !isOpen);
+  menuToggleBtn.setAttribute("aria-expanded", String(isOpen));
+  drawerEl.setAttribute("aria-hidden", String(!isOpen));
+};
+
+const switchView = (view) => {
+  currentView = view;
+  localStorage.setItem("year_active_view", view);
+  pageViews.forEach((page) => {
+    page.classList.toggle("active", page.id === `${view}-view`);
+  });
+  drawerLinks.forEach((link) => {
+    link.classList.toggle("active", link.getAttribute("data-view") === view);
+  });
+
+  if (view !== VIEWS.memo) {
+    hidePanelUI();
+  }
+
+  if (view === VIEWS.weight && authToken) {
+    loadWeightRecords();
+  }
+
+  setDrawerOpen(false);
+};
+
+menuToggleBtn.addEventListener("click", () => {
+  const isOpen = drawerEl.classList.contains("open");
+  setDrawerOpen(!isOpen);
+});
+
+drawerCloseBtn.addEventListener("click", () => setDrawerOpen(false));
+drawerOverlayEl.addEventListener("click", () => setDrawerOpen(false));
+drawerLinks.forEach((link) => {
+  link.addEventListener("click", () => {
+    switchView(link.getAttribute("data-view"));
+  });
+});
+
+const formatWeightDate = (dateStr) => {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  return `${year}.${month}.${day}`;
+};
+
+const inferWeightUserId = (record) => {
+  if (record.userId === "user1" || record.userId === "user2") {
+    return record.userId;
+  }
+
+  return Number(record.weightKg) >= 65 ? "user1" : "user2";
+};
+
+const getWeightUserLabel = (record) =>
+  inferWeightUserId(record) === "user1" ? "大宝贝" : "小宝贝";
+
+const getWeightSourceMeta = (record) => {
+  if (record.source === "manual_add") {
+    return { label: "手动添加", className: "manual" };
+  }
+
+  if (record.source === "manual_edit") {
+    return { label: "手动修改", className: "manual" };
+  }
+
+  return { label: "自动上报", className: "auto" };
+};
+
+const getWeightProfile = (record) =>
+  inferWeightUserId(record) === "user1"
+    ? WEIGHT_USER_PROFILES.user1
+    : WEIGHT_USER_PROFILES.user2;
+
+const getAgeFromBirthDate = (birthDate, measuredDate) => {
+  const [birthYear, birthMonth, birthDay] = birthDate.split("-").map(Number);
+  const [year, month, day] = measuredDate.split("-").map(Number);
+  let age = year - birthYear;
+  if (month < birthMonth || (month === birthMonth && day < birthDay)) {
+    age -= 1;
+  }
+  return age;
+};
+
+const getWeightMetrics = (record) => {
+  try {
+    const profile = getWeightProfile(record);
+    const age = getAgeFromBirthDate(profile.birthDate, record.measuredDate);
+    return calculateYunmaiMetrics({
+      weightKg: record.weightKg,
+      impedance: record.impedance,
+      age,
+      heightCm: profile.heightCm,
+      sex: profile.sex,
+    });
+  } catch (error) {
+    return null;
+  }
+};
+
+const inferWeightSeries = (record) => {
+  const user = inferWeightUserId(record);
+  const slot = record.timeSlot === "evening" ? "evening" : "morning";
+  return `${user}_${slot}`;
+};
+
+const sortWeightRecords = (records) =>
+  [...records].sort((a, b) => b.receivedAtMs - a.receivedAtMs);
+
+const dedupeWeightSeriesRecords = (records) => {
+  const sorted = sortWeightRecords(records);
+  const seen = new Set();
+
+  return sorted.filter((record) => {
+    const key = `${record.seriesId}:${record.measuredDate}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const formatWeightTimestamp = (record) => {
+  return `${formatWeightDate(record.receivedDate)} ${record.receivedTime}`;
+};
+
+const formatMeasuredTimestamp = (record) =>
+  `${formatWeightDate(record.measuredDate)} ${record.measuredTime}`;
+
+const setWeightStatus = (text) => {
+  const statusEl = document.getElementById("weight-sync-status");
+  if (statusEl) statusEl.textContent = text;
+};
+
+const normalizeWeightRecord = (record) => ({
+  ...record,
+  weightKg: Number(record.weightKg),
+  impedance: record.impedance == null ? null : Number(record.impedance),
+  receivedAtMs: Number(record.receivedAtMs),
+  measuredAtMs: Number(record.measuredAtMs),
+  userId: inferWeightUserId(record),
+  seriesId: inferWeightSeries(record),
+});
+
+const upsertWeightRecord = (record) => {
+  const normalized = normalizeWeightRecord(record);
+  const next = weightRecords.filter((item) => item.id !== normalized.id);
+  weightRecords = [normalized, ...next];
+};
+
+const removeWeightRecord = (recordId) => {
+  weightRecords = weightRecords.filter((record) => record.id !== recordId);
+};
+
+const patchWeightRecord = async (recordId, payload) => {
+  const res = await fetch(
+    `${WEIGHT_API_URL}?id=${encodeURIComponent(recordId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Weight patch failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return normalizeWeightRecord(data.record);
+};
+
+const createWeightRecord = async (payload) => {
+  const res = await fetch(WEIGHT_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Weight create failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return normalizeWeightRecord(data.record);
+};
+
+const deleteWeightRecordRequest = async (recordId) => {
+  const res = await fetch(
+    `${WEIGHT_API_URL}?id=${encodeURIComponent(recordId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Weight delete failed: ${res.status}`);
+  }
+};
+
+const promptEditWeightRecord = async (recordId) => {
+  const record = weightRecords.find((item) => item.id === recordId);
+  if (!record) return;
+
+  const weightValue = window.prompt("体重（kg）", String(record.weightKg));
+  if (weightValue === null) return;
+
+  const impedanceValue = window.prompt("阻抗（可留空）", record.impedance == null ? "" : String(record.impedance));
+  if (impedanceValue === null) return;
+
+  const measuredDateValue = window.prompt(
+    "数据日期（YYYY-MM-DD）",
+    record.measuredDate || "",
+  );
+  if (measuredDateValue === null) return;
+
+  const measuredTimeValue = window.prompt(
+    "数据时间（HH:mm 或 HH:mm:ss）",
+    record.measuredTime || "08:00:00",
+  );
+  if (measuredTimeValue === null) return;
+
+  try {
+    setWeightStatus("保存中...");
+    const updated = await patchWeightRecord(recordId, {
+      id: recordId,
+      weightKg: Number(weightValue),
+      impedance: impedanceValue.trim() === "" ? null : Number(impedanceValue),
+      measuredDate: measuredDateValue.trim(),
+      measuredTime: measuredTimeValue.trim(),
+    });
+    upsertWeightRecord(updated);
+    setWeightStatus("已保存");
+    refreshWeightView();
+  } catch (error) {
+    console.warn("Failed to update weight record:", error);
+    setWeightStatus("保存失败");
+    window.alert("保存失败，请检查输入格式。");
+  }
+};
+
+const promptCreateWeightRecord = async () => {
+  const weightValue = window.prompt("体重（kg）", "");
+  if (weightValue === null) return;
+
+  const impedanceValue = window.prompt("阻抗（可留空）", "");
+  if (impedanceValue === null) return;
+
+  const now = new Date();
+  const defaultDate = formatDate(now);
+  const defaultTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:00`;
+
+  const measuredDateValue = window.prompt("数据日期（YYYY-MM-DD）", defaultDate);
+  if (measuredDateValue === null) return;
+
+  const measuredTimeValue = window.prompt("数据时间（HH:mm 或 HH:mm:ss）", defaultTime);
+  if (measuredTimeValue === null) return;
+
+  try {
+    setWeightStatus("添加中...");
+    const created = await createWeightRecord({
+      weightKg: Number(weightValue),
+      impedance: impedanceValue.trim() === "" ? null : Number(impedanceValue),
+      measuredDate: measuredDateValue.trim(),
+      measuredTime: measuredTimeValue.trim(),
+      source: "manual_add",
+    });
+    upsertWeightRecord(created);
+    setWeightStatus("已添加");
+    refreshWeightView();
+  } catch (error) {
+    console.warn("Failed to create weight record:", error);
+    setWeightStatus("添加失败");
+    window.alert("添加失败，请检查输入格式。");
+  }
+};
+
+const handleDeleteWeightRecord = async (recordId) => {
+  const record = weightRecords.find((item) => item.id === recordId);
+  if (!record) return;
+  const confirmed = window.confirm(
+    `删除这条记录？\n${record.weightKg.toFixed(1)} kg\n数据时间：${formatMeasuredTimestamp(
+      record,
+    )}`,
+  );
+  if (!confirmed) return;
+
+  try {
+    setWeightStatus("删除中...");
+    await deleteWeightRecordRequest(recordId);
+    removeWeightRecord(recordId);
+    setWeightStatus("已删除");
+    refreshWeightView();
+  } catch (error) {
+    console.warn("Failed to delete weight record:", error);
+    setWeightStatus("删除失败");
+    window.alert("删除失败，请稍后再试。");
+  }
+};
+
+const loadWeightRecords = async () => {
+  if (!authToken) {
+    weightRecords = [];
+    weightError = "未登录";
+    refreshWeightView();
+    return;
+  }
+
+  weightLoading = true;
+  weightError = "";
+  setWeightStatus("同步中...");
+
+  try {
+    const res = await fetch(`${WEIGHT_API_URL}?limit=200`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      weightRecords = [];
+      weightError = "鉴权失效";
+      setWeightStatus("需要重新登录");
+      return;
+    }
+
+    if (!res.ok) {
+      throw new Error(`Weight fetch failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+    weightRecords = Array.isArray(data.records)
+      ? data.records.map(normalizeWeightRecord)
+      : [];
+    setWeightStatus(`已同步 ${weightRecords.length} 条`);
+  } catch (error) {
+    console.warn("Failed to load weight records:", error);
+    weightRecords = [];
+    weightError = "同步失败";
+    setWeightStatus("同步失败");
+  } finally {
+    weightLoading = false;
+    refreshWeightView();
+  }
+};
+
+const renderWeightSummary = () => {
+  const summaryEl = document.getElementById("weight-summary");
+  if (!summaryEl) return;
+
+  const renderUserSummaryRow = (label, content, meta = "") => `
+    <div class="summary-user-row">
+      <div class="summary-user-label">${label}</div>
+      <div class="summary-user-main">
+        <div class="summary-user-value">${content}</div>
+        ${meta ? `<div class="summary-user-meta">${meta}</div>` : ""}
+      </div>
+    </div>
+  `;
+
+  if (weightRecords.length === 0) {
+    summaryEl.innerHTML = `
+      <div class="summary-card">
+        <div class="summary-label">最新体重</div>
+        ${renderUserSummaryRow("大宝贝", "--")}
+        ${renderUserSummaryRow("小宝贝", "--")}
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">变化</div>
+        ${renderUserSummaryRow("大宝贝", "--")}
+        ${renderUserSummaryRow("小宝贝", "--")}
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">累计记录</div>
+        <div class="summary-value">0</div>
+        <div class="summary-meta">${weightError || "等待服务端数据"}</div>
+      </div>
+    `;
+    return;
+  }
+
+  const sorted = sortWeightRecords(weightRecords);
+  const buildUserSummary = (userId) => {
+    const userRecords = sorted.filter(
+      (record) => inferWeightUserId(record) === userId,
+    );
+    const latest = userRecords[0];
+    const previous = userRecords[1];
+    const delta = previous
+      ? (latest.weightKg - previous.weightKg).toFixed(1)
+      : null;
+    return {
+      latest,
+      previous,
+      delta,
+    };
+  };
+
+  const user1Summary = buildUserSummary("user1");
+  const user2Summary = buildUserSummary("user2");
+
+  summaryEl.innerHTML = `
+    <div class="summary-card">
+      <div class="summary-label">最新体重</div>
+      ${renderUserSummaryRow(
+        "大宝贝",
+        user1Summary.latest
+          ? `${user1Summary.latest.weightKg.toFixed(1)} <span>kg</span>`
+          : "--",
+        user1Summary.latest
+          ? formatMeasuredTimestamp(user1Summary.latest)
+          : "暂无记录",
+      )}
+      ${renderUserSummaryRow(
+        "小宝贝",
+        user2Summary.latest
+          ? `${user2Summary.latest.weightKg.toFixed(1)} <span>kg</span>`
+          : "--",
+        user2Summary.latest
+          ? formatMeasuredTimestamp(user2Summary.latest)
+          : "暂无记录",
+      )}
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">变化</div>
+      ${renderUserSummaryRow(
+        "大宝贝",
+        user1Summary.previous
+          ? `${user1Summary.delta > 0 ? "+" : ""}${user1Summary.delta} <span>kg</span>`
+          : "--",
+        user1Summary.previous
+          ? `对比 ${formatMeasuredTimestamp(user1Summary.previous)}`
+          : "暂无对比",
+      )}
+      ${renderUserSummaryRow(
+        "小宝贝",
+        user2Summary.previous
+          ? `${user2Summary.delta > 0 ? "+" : ""}${user2Summary.delta} <span>kg</span>`
+          : "--",
+        user2Summary.previous
+          ? `对比 ${formatMeasuredTimestamp(user2Summary.previous)}`
+          : "暂无对比",
+      )}
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">累计记录</div>
+      <div class="summary-value">${weightRecords.length}</div>
+      <div class="summary-meta">来自服务端接口</div>
+    </div>
+  `;
+};
+
+const renderWeightSeriesFilters = () => {
+  const filtersEl = document.getElementById("weight-series-filters");
+  if (!filtersEl) return;
+
+  filtersEl.innerHTML = WEIGHT_SERIES.map(
+    (series) => `
+      <button
+        type="button"
+        class="series-filter ${weightActiveSeries.has(series.id) ? "active" : ""}"
+        data-series-id="${series.id}"
+        style="--series-color: ${series.color}"
+      >
+        <span class="series-dot"></span>
+        ${series.label}
+      </button>
+    `,
+  ).join("");
+};
+
+const renderWeightChartStructure = () => {
+  const gridEl = document.getElementById("weight-chart-grid");
+  const emptyEl = document.getElementById("weight-chart-empty");
+  if (!gridEl || !emptyEl) return;
+
+  const visibleSeries = WEIGHT_SERIES.filter((series) =>
+    weightActiveSeries.has(series.id),
+  ).map((series) => ({
+    ...series,
+    records: dedupeWeightSeriesRecords(
+      weightRecords.filter((record) => record.seriesId === series.id),
+    ).slice(0, 5),
+  }));
+
+  const hasAnyRecord = visibleSeries.some(
+    (series) => series.records.length > 0,
+  );
+  emptyEl.classList.toggle("hidden", hasAnyRecord);
+
+  gridEl.innerHTML = visibleSeries
+    .map(
+      (series) => `
+        <div class="weight-grid-column">
+          <div class="weight-grid-title">
+            <span class="series-dot" style="background:${series.color}"></span>
+            ${series.label}
+          </div>
+          <div class="weight-grid-values">
+            ${
+              series.records.length
+                ? series.records
+                    .map(
+                      (record) => `
+                        <div class="weight-grid-value">
+                          <strong>${record.weightKg.toFixed(1)} kg</strong>
+                          <span>${record.measuredDate || "--"} ${record.measuredTime || ""}</span>
+                        </div>
+                      `,
+                    )
+                    .join("")
+                : `<div class="weight-grid-placeholder">暂无记录</div>`
+            }
+          </div>
+        </div>
+      `,
+    )
+    .join("");
+};
+
+const renderWeightList = () => {
+  const listEl = document.getElementById("weight-list");
+  const emptyEl = document.getElementById("weight-empty");
+  const countEl = document.getElementById("weight-count");
+  if (!listEl || !emptyEl || !countEl) return;
+
+  const sorted = sortWeightRecords(weightRecords);
+  countEl.textContent = `${sorted.length} 条`;
+  emptyEl.classList.toggle("hidden", sorted.length > 0);
+
+  listEl.innerHTML = sorted
+    .map((record) => {
+      const sourceMeta = getWeightSourceMeta(record);
+      const userClass = inferWeightUserId(record);
+      const expanded = expandedWeightRecordIds.has(record.id);
+      const metrics = expanded ? getWeightMetrics(record) : null;
+      const richMetricsHtml =
+        metrics && metrics.fatPercent != null
+          ? `
+            <div class="weight-metric-item"><span>体脂</span><strong>${metrics.fatPercent}%</strong></div>
+            <div class="weight-metric-item"><span>肌肉</span><strong>${metrics.musclePercent}%</strong></div>
+            <div class="weight-metric-item"><span>水分</span><strong>${metrics.waterPercent}%</strong></div>
+            <div class="weight-metric-item"><span>基础代谢</span><strong>${Math.trunc(metrics.bmr)}</strong></div>
+            <div class="weight-metric-item"><span>脂肪</span><strong>${metrics.fatMassJin} 斤</strong></div>
+          `
+          : "";
+      const detailsHtml =
+        expanded && metrics
+          ? `
+            <div class="weight-record-details">
+              <div class="weight-record-meta">接收时间 ${formatWeightTimestamp(record)} · ${
+                record.timeSlot || "other"
+              }</div>
+              <div class="weight-metrics-grid">
+                <div class="weight-metric-item"><span>BMI</span><strong>${metrics.bmi}</strong></div>
+                <div class="weight-metric-item"><span>蛋白质</span><strong>${metrics.proteinPercent}%</strong></div>
+                <div class="weight-metric-item"><span>身体年龄</span><strong>${metrics.somaAge}</strong></div>
+                ${richMetricsHtml}
+              </div>
+              <div class="weight-record-actions">
+                <button type="button" class="weight-action" data-action="edit" data-record-id="${record.id}">修改</button>
+                <button type="button" class="weight-action weight-action-danger" data-action="delete" data-record-id="${record.id}">删除</button>
+              </div>
+            </div>
+          `
+          : "";
+      return `
+        <article class="weight-record ${userClass} ${expanded ? "expanded" : ""}">
+          <button type="button" class="weight-record-trigger" data-action="toggle" data-record-id="${record.id}">
+            <div class="weight-record-main">
+              <span class="weight-source-tag ${sourceMeta.className}">${sourceMeta.label}</span>
+              <div>
+                <div class="weight-record-date">${formatMeasuredTimestamp(record)}</div>
+                <div class="weight-record-note">${getWeightUserLabel(record)}</div>
+              </div>
+            </div>
+            <div class="weight-record-side">
+              <div class="weight-record-value">${record.weightKg.toFixed(1)} kg</div>
+              <div class="weight-record-meta">${expanded ? "收起详情" : "展开详情"}</div>
+            </div>
+          </button>
+          ${detailsHtml}
+        </article>
+      `;
+    })
+    .join("");
+};
+
+const refreshWeightView = () => {
+  renderWeightSummary();
+  renderWeightSeriesFilters();
+  renderWeightChartStructure();
+  renderWeightList();
+};
+
+const bindWeightView = () => {
+  refreshWeightView();
+
+  document.getElementById("weight-add-btn")?.addEventListener("click", async () => {
+    await promptCreateWeightRecord();
+  });
+
+  document
+    .getElementById("weight-series-filters")
+    ?.addEventListener("click", (event) => {
+      const button = event.target.closest(".series-filter");
+      if (!button) return;
+
+      const seriesId = button.getAttribute("data-series-id");
+      if (!seriesId) return;
+
+      if (weightActiveSeries.has(seriesId)) {
+        if (weightActiveSeries.size === 1) return;
+        weightActiveSeries.delete(seriesId);
+      } else {
+        weightActiveSeries.add(seriesId);
+      }
+
+      refreshWeightView();
+    });
+
+  document
+    .getElementById("weight-list")
+    ?.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-action]");
+      if (!button) return;
+
+      const recordId = button.getAttribute("data-record-id");
+      const action = button.getAttribute("data-action");
+      if (!recordId || !action) return;
+
+      if (action === "toggle") {
+        if (expandedWeightRecordIds.has(recordId)) {
+          expandedWeightRecordIds.delete(recordId);
+        } else {
+          expandedWeightRecordIds.add(recordId);
+        }
+        renderWeightList();
+        return;
+      }
+
+      if (action === "edit") {
+        await promptEditWeightRecord(recordId);
+        return;
+      }
+
+      if (action === "delete") {
+        await handleDeleteWeightRecord(recordId);
+      }
+    });
+};
+
+bindWeightView();
 
 const yearTitle = document.querySelector(".year-title");
 if (yearTitle) {
@@ -367,9 +1129,11 @@ const initApp = () => {
   if (authToken) {
     // We have a token, try to load data
     loadAllEvents();
+    loadWeightRecords();
   } else {
     // No token, show lock screen
     authModal.classList.remove("hidden");
+    setWeightStatus("等待登录");
   }
 };
 
@@ -386,6 +1150,7 @@ const handleLogin = () => {
 
   // Load Data
   loadAllEvents();
+  loadWeightRecords();
 };
 
 // Updated API Functions with Auth
@@ -710,6 +1475,7 @@ const hidePanelUI = () => {
 };
 
 const closePanel = () => {
+  if (eventPanel.classList.contains("hidden")) return;
   // Go back in history -> triggers popstate -> calls hidePanelUI
   window.history.back();
 };
@@ -997,7 +1763,12 @@ giveupListEl.addEventListener("click", handleListClick);
 
 // Close on Esc
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closePanel();
+  if (e.key !== "Escape") return;
+  if (drawerEl.classList.contains("open")) {
+    setDrawerOpen(false);
+    return;
+  }
+  closePanel();
 });
 
 // --- Global UX Enhancements ---
